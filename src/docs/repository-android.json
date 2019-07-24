@@ -1,0 +1,8 @@
+{
+	"packageName": "com.qiqibike.mobile",
+	"bundleVersion": "",
+	"versionName": "0.2.5",
+	"versionCode": 205,
+	"packageFile": "apks/app-release.apk",
+	"releaseMessage": "改进图片加速处理服务."
+}
