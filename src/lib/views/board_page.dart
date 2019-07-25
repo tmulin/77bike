@@ -155,6 +155,7 @@ class _BoardPageState extends State<BoardPage> {
         return ScopedModel<Settings>(
           model: ApplicationCore.settings,
           child: Scaffold(
+            backgroundColor: Colors.grey.shade200,
             appBar: _buildAppBar(context),
             body: _buildPageBody(context),
           ),
@@ -364,7 +365,6 @@ class _BoardPageState extends State<BoardPage> {
 
     if (kind == tp.TopicListAction.sortByNew) {
       widget = Container(
-        color: Colors.white,
         margin: EdgeInsets.only(top: 8),
         constraints: BoxConstraints(minHeight: 120),
         child: Column(

@@ -261,6 +261,7 @@ abstract class _$PostContentSerializer implements Serializer<PostContent> {
     setMapValue(ret, 'aid', model.aid);
     setMapValue(ret, 'infor', model.infor);
     setMapValue(ret, 'originalInfo', model.originalInfo);
+    setMapValue(ret, 'url', model.url);
     setMapValue(ret, 'type', model.type);
     return ret;
   }
@@ -272,6 +273,7 @@ abstract class _$PostContentSerializer implements Serializer<PostContent> {
     obj.aid = map['aid'] as int;
     obj.infor = map['infor'] as String;
     obj.originalInfo = map['originalInfo'] as String;
+    obj.url = map['url'] as String;
     obj.type = map['type'] as int;
     return obj;
   }

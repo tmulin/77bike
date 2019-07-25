@@ -1,8 +1,8 @@
 {
 	"packageName": "com.qiqibike.mobile",
 	"bundleVersion": "",
-	"versionName": "0.2.11",
-	"versionCode": 211,
+	"versionName": "0.2.15",
+	"versionCode": 215,
 	"packageFile": "apks/app-release.apk",
-	"releaseMessage": "增加签到打卡功能!"
+	"releaseMessage": "增加签到打卡功能!\n增加点击打开@和网址功能!"
 }

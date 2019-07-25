@@ -62,6 +62,7 @@ class _ForumPageState extends State<ForumPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade200,
       appBar: _buildAppBar(context),
       body: _buildPageBody(context),
     );
@@ -115,7 +116,7 @@ class _ForumPageState extends State<ForumPage> {
 
   Widget _buildBoardCategory(BuildContext context, BoardCategory category) {
     final width = MediaQuery.of(context).size.width;
-    final minHeight = 160;
+    final minHeight = 150;
 
     return Container(
       constraints: BoxConstraints(minHeight: 120),
@@ -125,11 +126,10 @@ class _ForumPageState extends State<ForumPage> {
         children: <Widget>[
           /// 论坛标题
           Container(
-              color: Color(0xfff5f5f5),
               padding: EdgeInsets.all(8),
               child: Text(
                 category.board_category_name,
-                style: TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               )),
           Divider(height: 0),
 
@@ -145,10 +145,7 @@ class _ForumPageState extends State<ForumPage> {
           ),
 
           /// 版块底部与下一版块标题之间额外间距
-          Container(
-            height: 8,
-            color: Color(0xfff5f5f5),
-          )
+          Container(height: 8)
         ],
       ),
     );

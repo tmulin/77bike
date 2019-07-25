@@ -135,6 +135,7 @@ class _IndexPageState extends State<IndexPage> {
       length: 2,
       child: Builder(builder: (context) {
         return Scaffold(
+          backgroundColor: Colors.grey.shade200,
           appBar: _buildAppBar(context),
           body: _buildPageBody(context),
         );
@@ -370,7 +371,6 @@ class TopicItemWidget extends StatelessWidget {
 
     if (kind == tp.TopicListAction.sortByNew) {
       widget = Container(
-        color: Colors.white,
         margin: EdgeInsets.only(top: 8),
         constraints: BoxConstraints(minHeight: 120),
         child: Column(
@@ -393,22 +393,19 @@ class TopicItemWidget extends StatelessWidget {
         image = Container(
           width: MediaQuery.of(context).size.width / 4 - 8,
           padding: EdgeInsets.only(right: 8),
-          child: TopicImageWidget(
-            model.pic_path,
-            aspectRatio: 1,
+          child: TopicImageWidget(model.pic_path, aspectRatio: 1,
               onTapImage: (image) async {
-                await showDialog(
-                    barrierDismissible: true,
-                    context: context,
-                    builder: (context) {
-                      return ImageViewer(
-                          initImage: image,
-                          images: (model.imageList ?? [])
-                              .where((i) => i != null)
-                              .toList());
-                    });
-              }
-          ),
+            await showDialog(
+                barrierDismissible: true,
+                context: context,
+                builder: (context) {
+                  return ImageViewer(
+                      initImage: image,
+                      images: (model.imageList ?? [])
+                          .where((i) => i != null)
+                          .toList());
+                });
+          }),
         );
 
       widget = Container(

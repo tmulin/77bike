@@ -165,6 +165,7 @@ class _TopicPageState extends State<TopicPage> {
       child: ScopedModel<TopicSettings>(
         model: _topicSettings,
         child: Scaffold(
+          backgroundColor: Colors.grey.shade200,
           appBar: PreferredSize(
               preferredSize: Size.fromHeight(kToolbarHeight),
               child: _buildAppBar(context)),
@@ -745,7 +746,7 @@ class PostContentWidget extends StatelessWidget {
           child: EmojiTextWidget(
               emojiSize: 22,
               text: content.infor,
-              textStyle: TextStyle(fontSize: 18, color: Colors.black)),
+              textStyle: TextStyle(fontSize: 16, color: Colors.black)),
         );
       case 1:
         return imageSegment(context, onTapImage: this.onTapImage);
@@ -814,9 +815,23 @@ class PostContentWidget extends StatelessWidget {
   Widget atSegment(BuildContext context) {
     return Container(
         margin: EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          content.infor,
-          style: TextStyle(fontSize: 15, color: Color(0xff001ba0)),
+        child: GestureDetector(
+          onTap: () {
+            if (content.url == null) return;
+            if (content.url.startsWith("http://") ||
+                content.url.startsWith("https://")) {
+              Navigator.of(context).push(MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (context) => WebViewPage(
+                        url: content.url,
+                        title: content.infor,
+                      )));
+            }
+          },
+          child: Text(
+            content.infor,
+            style: TextStyle(fontSize: 15, color: Color(0xff001ba0)),
+          ),
         ));
   }
 }

@@ -188,6 +188,10 @@ class PostContent {
   /// 附件路径(type=1时设置)
   String originalInfo;
 
+  /// 网址
+  /// type=4 时设置
+  String url;
+
   /// 内容类型
   /// 0 = 文本
   /// 1 = 图片

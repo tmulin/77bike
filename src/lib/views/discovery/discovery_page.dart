@@ -38,11 +38,13 @@ class DiscoveryPage extends StatefulWidget {
 class _DiscoveryPageState extends State<DiscoveryPage> {
   String appVersoin;
   UserInfoResponse _userInfo;
+  ApplicationUpdateResponse _updateDetails;
 
   @override
   void initState() {
     super.initState();
     this.reloadUserInfo();
+    _updateDetails = widget.updateDetails;
 
     ApplicationCore.session.addListener(_currentUserChanged);
     appVersoin = "?.?.?";
@@ -70,6 +72,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     assert(ApplicationCore.session != null);
 
     return Scaffold(
+        backgroundColor: Colors.grey.shade200,
         appBar: AppBar(
           title: Text("发现"),
           centerTitle: true,
@@ -103,7 +106,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       child: ListView(
         children: <Widget>[
           _buildUserHeadItem(context),
-          Container(height: 16),
+          Container(height: 8),
           _buildItem(context,
               title: "我的发表",
               icon: Icon(Icons.note_add),
@@ -186,7 +189,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
 //            );
 //          },
 //        ),
-          Container(height: 16),
+          Container(height: 8),
           _buildVersionUpdateWidget(context),
           if (Build.inDevelopment)
             Container(height: 16),
@@ -205,10 +208,10 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                 );
               },
             ),
-          Container(height: 16),
+          Container(height: 8),
           if (ApplicationCore.session.uid > 0)
             Container(
-              margin: EdgeInsets.symmetric(horizontal: 16),
+              margin: EdgeInsets.only(left: 8, right: 8, top: 8, bottom: 32),
               child: CupertinoButton(
                 color: Colors.white,
                 child: Text(
@@ -400,14 +403,20 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   _buildVersionUpdateWidget(BuildContext context) {
-    if (widget.updateDetails == null) {
-      return _buildItem(
-        context,
-        title: "当前版本",
-        icon: Icon(Icons.update),
-        trailing: Icon(null),
-        trailingPrefix: Text("v${appVersoin}"),
-      );
+    if (_updateDetails == null) {
+      return _buildItem(context,
+          title: "当前版本",
+          icon: Icon(Icons.update),
+          trailing: Icon(null),
+          trailingPrefix: Text("v${appVersoin}"), onTap: () {
+        UpdaterService.instance.checkUpdate().then((response) {
+          if (response.hasUpdate) {
+            setState(() {
+              _updateDetails = response;
+            });
+          }
+        });
+      });
     }
 
     return _buildItem(context,
@@ -417,13 +426,13 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
             padding: const EdgeInsets.all(8.0),
             child:
                 Icon(Icons.fiber_manual_record, color: Colors.red, size: 10)),
-        trailingPrefix: Text("点击下载 v${widget.updateDetails.versionName}",
+        trailingPrefix: Text("点击下载 v${_updateDetails.versionName}",
             style: TextStyle(color: Colors.red)), onTap: () async {
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return UpdateDialog(widget.updateDetails);
+          return UpdateDialog(_updateDetails);
         },
       );
     });

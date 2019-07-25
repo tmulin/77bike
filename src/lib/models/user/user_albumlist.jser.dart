@@ -133,6 +133,10 @@ abstract class _$UserPhotoSerializer implements Serializer<UserPhoto> {
   Map<String, dynamic> toMap(UserPhoto model) {
     if (model == null) return null;
     Map<String, dynamic> ret = <String, dynamic>{};
+    setMapValue(ret, 'release_date_value',
+        dateTimeUtcProcessor.serialize(model.release_date_value));
+    setMapValue(ret, 'last_update_date_value',
+        dateTimeUtcProcessor.serialize(model.last_update_date_value));
     setMapValue(ret, 'album_id', model.album_id);
     setMapValue(ret, 'pic_id', model.pic_id);
     setMapValue(ret, 'user_id', model.user_id);
