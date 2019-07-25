@@ -396,6 +396,18 @@ class TopicItemWidget extends StatelessWidget {
           child: TopicImageWidget(
             model.pic_path,
             aspectRatio: 1,
+              onTapImage: (image) async {
+                await showDialog(
+                    barrierDismissible: true,
+                    context: context,
+                    builder: (context) {
+                      return ImageViewer(
+                          initImage: image,
+                          images: (model.imageList ?? [])
+                              .where((i) => i != null)
+                              .toList());
+                    });
+              }
           ),
         );
 

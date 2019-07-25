@@ -13,6 +13,7 @@ import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
 import '../core/forum.dart';
+import 'image_viewer.dart';
 
 class _DataSource extends Model {
   final int boardId;
@@ -386,10 +387,19 @@ class _BoardPageState extends State<BoardPage> {
         image = Container(
           width: MediaQuery.of(context).size.width / 4 - 8,
           padding: EdgeInsets.only(right: 8),
-          child: TopicImageWidget(
-            model.pic_path,
-            aspectRatio: 1,
-          ),
+          child: TopicImageWidget(model.pic_path, aspectRatio: 1,
+              onTapImage: (image) async {
+            await showDialog(
+                barrierDismissible: true,
+                context: context,
+                builder: (context) {
+                  return ImageViewer(
+                      initImage: image,
+                      images: (model.imageList ?? [])
+                          .where((i) => i != null)
+                          .toList());
+                });
+          }),
         );
 
       widget = Container(
@@ -515,12 +525,21 @@ class _BoardPageState extends State<BoardPage> {
             (url) => Expanded(
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 4),
-                child: TopicImageWidget(
-                  url,
+                child: TopicImageWidget(url,
 
-                  /// 正方形
-                  aspectRatio: 1,
-                ),
+                    /// 正方形
+                    aspectRatio: 1, onTapImage: (image) async {
+                  await showDialog(
+                      barrierDismissible: true,
+                      context: context,
+                      builder: (context) {
+                        return ImageViewer(
+                            initImage: image,
+                            images: (model.imageList ?? [])
+                                .where((i) => i != null)
+                                .toList());
+                      });
+                }),
               ),
             ),
           )

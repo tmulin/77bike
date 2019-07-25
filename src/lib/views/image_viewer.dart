@@ -56,36 +56,41 @@ class _ImageViewerState extends State<ImageViewer> {
   Widget _buildPageBody(BuildContext context) {
     return Stack(
       children: <Widget>[
-        PhotoViewGallery.builder(
-          onPageChanged: (value) {
-            setState(() {
-              currentPage = value;
-            });
+        GestureDetector(
+          onVerticalDragEnd: (_){
+            Navigator.of(context).pop();
           },
-          loadingChild: Container(
-            color: Colors.black,
-            child: Center(child: CircularProgressIndicator()),
+          child: PhotoViewGallery.builder(
+            onPageChanged: (value) {
+              setState(() {
+                currentPage = value;
+              });
+            },
+            loadingChild: Container(
+              color: Colors.black,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            pageController: _pageController,
+            scrollPhysics: const BouncingScrollPhysics(),
+            builder: (BuildContext context, int index) {
+              return PhotoViewGalleryPageOptions(
+                onTapUp: (BuildContext context, TapUpDetails details,
+                    PhotoViewControllerValue controllerValue) {
+                  Navigator.of(context).pop();
+                },
+                maxScale: 1.0,
+                imageProvider: CachedNetworkImageProvider(widget.images[index],
+                    cacheManager: CustomCacheManager(),
+                    headers: {
+                      HttpHeaders.userAgentHeader:
+                          "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
+                    }),
+                initialScale: PhotoViewComputedScale.contained,
+                heroTag: widget.images[index],
+              );
+            },
+            itemCount: widget.images.length,
           ),
-          pageController: _pageController,
-          scrollPhysics: const BouncingScrollPhysics(),
-          builder: (BuildContext context, int index) {
-            return PhotoViewGalleryPageOptions(
-              onTapUp: (BuildContext context, TapUpDetails details,
-                  PhotoViewControllerValue controllerValue) {
-                Navigator.of(context).pop();
-              },
-              maxScale: 1.0,
-              imageProvider: CachedNetworkImageProvider(widget.images[index],
-                  cacheManager: CustomCacheManager(),
-                  headers: {
-                    HttpHeaders.userAgentHeader:
-                        "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
-                  }),
-              initialScale: PhotoViewComputedScale.contained,
-              heroTag: widget.images[index],
-            );
-          },
-          itemCount: widget.images.length,
         ),
         Positioned(
           left: 0,
