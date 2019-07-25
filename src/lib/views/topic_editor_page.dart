@@ -655,12 +655,12 @@ class PostTask {
 
   String isValid() {
     if (topicId == 0) {
-      if (title.length < 3) {
-        return "标题字数太少了~~~";
+      if (title.length == 0) {
+        return "标题不能为空 ~~~";
       }
     }
-    if (content.length < 3) {
-      return "内容字数太少了~~~!";
+    if (content.length == 0) {
+      return "内容不能为空 ~~~!";
     }
     return null;
   }

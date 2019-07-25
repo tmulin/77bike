@@ -15,6 +15,7 @@ import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
 import '../api/mobcent_client.dart';
+import 'image_viewer.dart';
 import 'user_login_page.dart';
 
 class PostDataModel {
@@ -166,13 +167,7 @@ class _TopicPageState extends State<TopicPage> {
         child: Scaffold(
           appBar: PreferredSize(
               preferredSize: Size.fromHeight(kToolbarHeight),
-              child: GestureDetector(
-                  onDoubleTap: () {
-                    _scrollController.animateTo(0,
-                        duration: Duration(milliseconds: 200),
-                        curve: Curves.easeIn);
-                  },
-                  child: _buildAppBar(context))),
+              child: _buildAppBar(context)),
           floatingActionButton: FloatingActionButton(
             mini: true,
             onPressed: () {
@@ -204,9 +199,21 @@ class _TopicPageState extends State<TopicPage> {
         builder: (context, child, settings) {
       return AppBar(
         title: ScopedModelDescendant<PostDataSource>(
-          builder: (context, child, model) => Text(
-              ApplicationCore.forum.boards[model.boardId]?.board_name ?? ""),
-        ),
+            builder: (context, child, model) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onDoubleTap: () {
+              _scrollController.animateTo(0,
+                  duration: Duration(milliseconds: 200), curve: Curves.easeIn);
+            },
+            child: Row(
+              children: <Widget>[
+                Text(ApplicationCore.forum.boards[model.boardId]?.board_name ??
+                    ""),
+              ],
+            ),
+          );
+        }),
         actions: <Widget>[
           PopupMenuButton<String>(
             offset: Offset(0, kToolbarHeight),
@@ -349,7 +356,23 @@ class _TopicPageState extends State<TopicPage> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Divider(height: 1),
           ),
-          ...topic.content.map((content) => PostContentWidget(content)),
+          ...topic.content.map((content) => PostContentWidget(
+                content,
+                onTapImage: (image) async {
+                  final images = topic.content
+                      .where((item) => item.type == 1)
+                      .map((item) => item.originalInfo)
+                      .toList();
+                  await showDialog(
+                      barrierDismissible: true,
+                      context: context,
+                      builder: (context) {
+                        return ImageViewer(
+                            initImage: image,
+                            images: images.where((i) => i != null).toList());
+                      });
+                },
+              )),
           _buildTopicBottomWidget(context, topic),
         ],
       ),
@@ -370,7 +393,23 @@ class _TopicPageState extends State<TopicPage> {
               context, model.icon, model.reply_name, model.userTitle,
               floor: model.position),
           Divider(height: 8),
-          ...model.reply_content.map((content) => PostContentWidget(content)),
+          ...model.reply_content.map((content) => PostContentWidget(
+                content,
+                onTapImage: (image) async {
+                  final images = model.reply_content
+                      .where((item) => item.type == 1)
+                      .map((item) => item.originalInfo)
+                      .toList();
+                  await showDialog(
+                      barrierDismissible: true,
+                      context: context,
+                      builder: (context) {
+                        return ImageViewer(
+                            initImage: image,
+                            images: images.where((i) => i != null).toList());
+                      });
+                },
+              )),
           if (!DataHelper.isIsNullOrWhiteSpaceString(model.quote_content))
             PostQuoteWidget(model),
           _buildReplyBottomWidget(context, model),
@@ -693,8 +732,9 @@ class ReplyTopicWidget extends StatelessWidget {
 class PostContentWidget extends StatelessWidget {
   final String debugLabel;
   final PostContent content;
+  final void Function(String image) onTapImage;
 
-  PostContentWidget(this.content, {this.debugLabel});
+  PostContentWidget(this.content, {this.debugLabel, this.onTapImage});
 
   @override
   Widget build(BuildContext context) {
@@ -708,7 +748,7 @@ class PostContentWidget extends StatelessWidget {
               textStyle: TextStyle(fontSize: 18, color: Colors.black)),
         );
       case 1:
-        return imageSegment(context);
+        return imageSegment(context, onTapImage: this.onTapImage);
       case 4:
         return atSegment(context);
       default:
@@ -743,7 +783,8 @@ class PostContentWidget extends StatelessWidget {
 //    );
 //  }
 
-  Widget imageSegment(BuildContext context) {
+  Widget imageSegment(BuildContext context,
+      {void Function(String image) onTapImage}) {
     return ScopedModelDescendant<TopicSettings>(
       builder: (context, child, settings) {
         return Container(
@@ -763,10 +804,8 @@ class PostContentWidget extends StatelessWidget {
                     ),
                   ),
                 )
-              : PostImageWidget(
-                  content.originalInfo,
-                  borderRadius: 8,
-                ),
+              : PostImageWidget(content.originalInfo,
+                  borderRadius: 8, onTapImage: onTapImage),
         );
       },
     );

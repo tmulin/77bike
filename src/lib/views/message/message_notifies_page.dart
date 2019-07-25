@@ -5,6 +5,8 @@ import 'package:qiqi_bike/models/message/message_notifylist.dart';
 import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
+import '../topic_page.dart';
+
 class MessageNotifiesPage extends StatefulWidget {
   @override
   _MessageNotifiesPageState createState() => _MessageNotifiesPageState();
@@ -18,7 +20,8 @@ class _MessageNotifiesPageState extends State<MessageNotifiesPage> {
     super.initState();
     _dataSource = _DataSource("评论");
     _dataSource.reload().then((value) {
-      print("MessageNotifiesPage::load => ${value} :: ${_dataSource.items.length}");
+      print(
+          "MessageNotifiesPage::load => ${value} :: ${_dataSource.items.length}");
       setState(() {});
     });
   }
@@ -26,6 +29,7 @@ class _MessageNotifiesPageState extends State<MessageNotifiesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xfff5f5f5),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text("评论"),
@@ -55,50 +59,67 @@ class _MessageNotifiesPageState extends State<MessageNotifiesPage> {
   }
 
   Widget _buildNotifyItem(BuildContext context, Notify notify) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        ListTile(
-          leading: UserAvatarWidget(
-            notify.icon,
-            width: 40,
-            height: 40,
-            borderRadius: 4,
+    return Material(
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => TopicPage(
+                    boardId: notify.board_id,
+                    topicId: notify.topic_id,
+                    title: notify.topic_subject,
+                  )));
+        },
+        child: Container(
+          color: Colors.white,
+          margin: EdgeInsets.only(bottom: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              ListTile(
+                leading: UserAvatarWidget(
+                  notify.icon,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 4,
+                ),
+                dense: true,
+                title: Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 4),
+                  child: Text(notify.reply_nick_name),
+                ),
+                subtitle: Text(DataHelper.toDateTimeOffsetString(
+                    notify.replied_date_value)),
+              ),
+              Divider(height: 0),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  notify.reply_content?.trim(),
+                  softWrap: false,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(),
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: Colors.grey.shade300),
+                child: Text(
+                  notify.topic_content?.trim(),
+                  softWrap: false,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(),
+                ),
+              )
+            ],
           ),
-          dense: true,
-          title: Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: Text(notify.reply_nick_name),
-          ),
-          subtitle: Text(
-              DataHelper.toDateTimeOffsetString(notify.replied_date_value)),
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Text(
-            notify.reply_content?.trim(),
-            softWrap: false,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(),
-          ),
-        ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(color: Colors.grey.shade300),
-          child: Text(
-            notify.topic_content?.trim(),
-            softWrap: false,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(),
-          ),
-        )
-      ],
+      ),
     );
   }
 }

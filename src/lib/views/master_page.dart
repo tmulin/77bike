@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:qiqi_bike/core/application.dart';
+import 'package:qiqi_bike/core/messages.dart';
 import 'package:qiqi_bike/core/session.dart';
 import 'package:qiqi_bike/core/settings.dart';
 import 'package:qiqi_bike/update/update_service.dart';
@@ -55,34 +56,37 @@ class _MasterPageState extends State<MasterPage> {
       DiscoveryPage(updateDetails: _updateResponse),
     ];
 
-    return ScopedModel<Session>(
-      model: ApplicationCore.session,
-      child: ScopedModel<Settings>(
-        model: ApplicationCore.settings,
-        child: Scaffold(
-          bottomNavigationBar: _buildBottomNavigation(context),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) {
-                    if (ApplicationCore.session.uid > 0) {
-                      /// 发布新帖
-                      return TopicEditorPage();
-                    } else {
-                      /// 登录
-                      return UserLoginPage();
-                    }
-                  },
-                  fullscreenDialog: true));
-            },
-            child: Icon(Icons.add),
-            mini: true,
+    return ScopedModel<MessagesModel>(
+      model: ApplicationCore.messages,
+      child: ScopedModel<Session>(
+        model: ApplicationCore.session,
+        child: ScopedModel<Settings>(
+          model: ApplicationCore.settings,
+          child: Scaffold(
+            bottomNavigationBar: _buildBottomNavigation(context),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) {
+                      if (ApplicationCore.session.uid > 0) {
+                        /// 发布新帖
+                        return TopicEditorPage();
+                      } else {
+                        /// 登录
+                        return UserLoginPage();
+                      }
+                    },
+                    fullscreenDialog: true));
+              },
+              child: Icon(Icons.add),
+              mini: true,
+            ),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
+            body: Container(
+                color: Color(0xfff5f5f5),
+                child: IndexedStack(index: _currentIndex, children: mainPages)),
           ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
-          body: Container(
-              color: Color(0xfff5f5f5),
-              child: IndexedStack(index: _currentIndex, children: mainPages)),
         ),
       ),
     );
@@ -103,7 +107,10 @@ class _MasterPageState extends State<MasterPage> {
             width: 32,
             height: 0,
           ),
-          _buildNavButton(context, Icons.message, 3, label: "消息"),
+          ScopedModelDescendant<MessagesModel>(
+              builder: (context, _, messages) => _buildNavButton(
+                  context, Icons.message, 3,
+                  label: "消息", bubble: messages.hasMessage)),
           _buildNavButton(context, Icons.center_focus_strong, 4,
               label: "发现", bubble: _updateResponse != null),
         ],
@@ -124,6 +131,9 @@ class _MasterPageState extends State<MasterPage> {
         _currentIndex = index;
         pageControllers[_currentIndex]?.refresh();
         setState(() {});
+
+        /// 手动触发消息检查
+        ApplicationCore.checkMessages();
       },
       child: Stack(
         alignment: AlignmentDirectional.topEnd,

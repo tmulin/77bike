@@ -1,15 +1,22 @@
 import 'dart:convert';
 
+import 'package:qiqi_bike/api/mobcent_client.dart';
 import 'package:qiqi_bike/core/session.dart';
 import 'package:qiqi_bike/core/settings.dart';
+import 'package:qiqi_bike/models/message/message_heart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'forum.dart';
+import 'messages.dart';
 
 class ApplicationCore {
   static ForumModel _forum;
 
   static ForumModel get forum => _forum;
+
+  static MessagesModel _messages = MessagesModel();
+
+  static MessagesModel get messages => _messages;
 
   static Session _session;
 
@@ -120,6 +127,10 @@ class ApplicationCore {
     Uri uri = Uri.parse(rawUrl);
     String host = uri.host;
     String path = uri.path;
+    final existsProcessor = path.indexOf("!");
+    if (existsProcessor >= 0) {
+      path = path.substring(0, existsProcessor);
+    }
     if (cloudProcess) {
       host = "77.yuan.cn";
       if (path.startsWith("/bbs/attachment"))
@@ -129,5 +140,31 @@ class ApplicationCore {
 
     return Uri(scheme: uri.scheme, host: host, port: uri.port, path: path)
         .toString();
+  }
+
+  static void checkMessages() {
+    try {
+      MobcentClient.instance.messageHeart().then((response) {
+        if (response.noError) {
+          final atme = response.body?.atMeInfo;
+          final friend = response.body?.friendInfo;
+          final reply = response.body?.replyInfo;
+          ApplicationCore.messages.update(
+            atMeInfo: MessageDetails(
+                count: atme?.count ?? 0, time: atme?.time ?? "0"),
+            friendInfo: MessageDetails(
+                count: friend?.count ?? 0, time: friend?.time ?? "0"),
+            replyInfo: MessageDetails(
+                count: reply?.count ?? 0, time: reply?.time ?? "0"),
+          );
+          print(
+              "消息检查成功 => ${ApplicationCore.messages.hasMessage} : ${MessageHeartResponseSerializer().toMap(response)}");
+        } else {
+          print("消息检查失败 => ${response.head.errInfo}");
+        }
+      });
+    } catch (exp) {
+      print("消息检查失败 => ${exp}");
+    }
   }
 }

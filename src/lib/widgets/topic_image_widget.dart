@@ -16,8 +16,15 @@ class TopicImageWidget extends StatelessWidget {
 
   final double aspectRatio;
 
+  final Function(String image) onTapImage;
+
   const TopicImageWidget(this.imageUrl,
-      {Key key, this.width, this.height, this.borderRadius, this.aspectRatio})
+      {Key key,
+      this.width,
+      this.height,
+      this.borderRadius,
+      this.aspectRatio,
+      this.onTapImage})
       : super(key: key);
 
   Widget _wrapAspectRatio(Widget child) {
@@ -52,48 +59,54 @@ class TopicImageWidget extends StatelessWidget {
         cloudProcess: ApplicationCore.settings.cloudProcess > 0,
         processor: "!square300webp");
 
-    return CachedNetworkImage(
-      imageUrl: targetImageUrl,
-      fadeInDuration: Duration.zero,
-      fadeOutDuration: Duration.zero,
-      httpHeaders: {
-        HttpHeaders.userAgentHeader:
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
+    return GestureDetector(
+      onTap: () {
+        if (this.onTapImage != null) this.onTapImage(targetImageUrl);
       },
-      imageBuilder: (context, provider) {
-        var imageStream = provider.resolve(ImageConfiguration.empty);
-        imageStream.addListener(
-            ImageStreamListener((ImageInfo image, bool synchronousCall) {},
-                onError: (dynamic exception, StackTrace stackTrace) {
-          print("TOPIC imageStream ERROR => ${exception} : ${targetImageUrl}");
-          DefaultCacheManager().removeFile(targetImageUrl);
-        }));
-        return _wrapBorderRadius(
-          _wrapAspectRatio(
-            Image(
-              image: provider,
-              fit: BoxFit.cover,
+      child: CachedNetworkImage(
+        imageUrl: targetImageUrl,
+        fadeInDuration: Duration.zero,
+        fadeOutDuration: Duration.zero,
+        httpHeaders: {
+          HttpHeaders.userAgentHeader:
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
+        },
+        imageBuilder: (context, provider) {
+          var imageStream = provider.resolve(ImageConfiguration.empty);
+          imageStream.addListener(
+              ImageStreamListener((ImageInfo image, bool synchronousCall) {},
+                  onError: (dynamic exception, StackTrace stackTrace) {
+            print(
+                "TOPIC imageStream ERROR => ${exception} : ${targetImageUrl}");
+            DefaultCacheManager().removeFile(targetImageUrl);
+          }));
+          return _wrapBorderRadius(
+            _wrapAspectRatio(
+              Image(
+                image: provider,
+                fit: BoxFit.cover,
+              ),
             ),
+          );
+        },
+        placeholder: (context, url) => _wrapBorderRadius(_wrapAspectRatio(
+          Icon(
+            Icons.image,
+            color: Colors.grey.shade200,
           ),
-        );
-      },
-      placeholder: (context, url) => _wrapBorderRadius(_wrapAspectRatio(
-        Icon(
-          Icons.image,
-          color: Colors.grey.shade200,
-        ),
-      )),
-      errorWidget: (context, url, error) {
-        print("Load Image ERROR => $error : ${targetImageUrl}");
-        return _wrapBorderRadius(
-          _wrapAspectRatio(
-            Icon(
-              Icons.image,
-              color: Colors.grey.shade200,
+        )),
+        errorWidget: (context, url, error) {
+          print("Load Image ERROR => $error : ${targetImageUrl}");
+          return _wrapBorderRadius(
+            _wrapAspectRatio(
+              Icon(
+                Icons.image,
+                color: Colors.grey.shade200,
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

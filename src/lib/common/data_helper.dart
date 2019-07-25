@@ -57,6 +57,19 @@ class DataHelper {
     return int.tryParse(DateFormat("yyyyMMddHHmmss").format(date));
   }
 
+  static DateTime dateCodeToDate(int dateCode) {
+    return DateTime(dateCode ~/ 10000, dateCode ~/ 100 % 100, dateCode % 100);
+  }
+
+  static int dateTimeToCode(DateTime dateTime) {
+    return dateTime.year * 10000 + dateTime.month * 100 + dateTime.day;
+  }
+
+  static int nowToDateCode() {
+    var dateTime = DateTime.now();
+    return dateTime.year * 10000 + dateTime.month * 100 + dateTime.day;
+  }
+
   static final List<String> shortWeekdays = ["一", "二", "三", "四", "五", "六", "日"];
   static final List<String> longWeekdays = [
     "星期一",

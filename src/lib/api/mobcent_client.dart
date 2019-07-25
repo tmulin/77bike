@@ -23,6 +23,7 @@ import 'package:qiqi_bike/models/user/user_albumlist.dart';
 import 'package:qiqi_bike/models/user/user_getsetting.dart';
 import 'package:qiqi_bike/models/user/user_login.dart';
 import 'package:qiqi_bike/models/user/user_register.dart';
+import 'package:qiqi_bike/models/user/user_sign.dart';
 import 'package:qiqi_bike/models/user/user_topiclist.dart';
 import 'package:qiqi_bike/models/user/user_userinfo.dart';
 
@@ -153,6 +154,17 @@ class MobcentClient {
             onSendProgress: onSendProgress)
         .catchError(dioErrorTransformer);
     return response.data;
+  }
+
+  Future<MobcentResponse> userSign() async {
+    Map<String, dynamic> data = UserSignAction.buildRequest();
+
+    var response = await _post(UserSignAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+
+    assert(response is Map);
+
+    return UserSignAction.parseResponse(response);
   }
 
   Future<UserGetSettingResponse> userGetSetting() async {

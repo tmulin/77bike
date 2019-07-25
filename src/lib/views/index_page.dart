@@ -13,6 +13,7 @@ import 'package:qiqi_bike/widgets/topic_list_ending.dart';
 import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
+import 'image_viewer.dart';
 import 'master_page.dart';
 
 class _DataSource extends Model {
@@ -523,12 +524,21 @@ _buildTopicImagesWidget(BuildContext context, tp.Topic model) {
           (url) => Expanded(
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4),
-              child: TopicImageWidget(
-                url,
+              child: TopicImageWidget(url,
 
-                /// 正方形
-                aspectRatio: 1,
-              ),
+                  /// 正方形
+                  aspectRatio: 1, onTapImage: (image) async {
+                await showDialog(
+                    barrierDismissible: true,
+                    context: context,
+                    builder: (context) {
+                      return ImageViewer(
+                          initImage: image,
+                          images: (model.imageList ?? [])
+                              .where((i) => i != null)
+                              .toList());
+                    });
+              }),
             ),
           ),
         )

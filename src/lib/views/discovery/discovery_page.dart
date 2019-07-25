@@ -1,7 +1,9 @@
+import 'package:flushbar/flushbar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info/package_info.dart';
 import 'package:qiqi_bike/api/mobcent_client.dart';
+import 'package:qiqi_bike/common/data_helper.dart';
 import 'package:qiqi_bike/core/application.dart';
 import 'package:qiqi_bike/core/build.dart';
 import 'package:qiqi_bike/core/session.dart';
@@ -249,7 +251,11 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                       padding: const EdgeInsets.all(16.0),
                       child: Text("立即登录", style: TextStyle(color: Colors.red)),
                     ),
-                  )
+                  ),
+                  Spacer(),
+
+                  /// 签到按钮
+                  _buildSignWidget(context),
                 ],
               ));
         } else {
@@ -291,6 +297,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                   ],
                 ),
 
+                Spacer(),
+
                 /// 签到按钮
                 _buildSignWidget(context),
               ],
@@ -302,7 +310,56 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
   }
 
   _buildSignWidget(BuildContext context) {
-    return Container();
+    return ScopedModelDescendant<Session>(builder: (context, _, session) {
+      final todayCode = DataHelper.nowToDateCode();
+      final mainColor = session.signDate == todayCode
+          ? Theme.of(context).backgroundColor
+          : Color(0xFFFF6A6A);
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: RawMaterialButton(
+          constraints: BoxConstraints(
+              maxWidth: 40, maxHeight: 40, minWidth: 40, minHeight: 40),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: mainColor, width: 2)),
+          child: Text("签",
+              style: TextStyle(
+                  color: mainColor, fontSize: 20, fontWeight: FontWeight.bold)),
+          onPressed: () async {
+            final response = await MobcentClient.instance.userSign();
+            if ([070000006, 070000003].contains(response?.head?.errCode)) {
+              print("更新签到状态 => ${todayCode}");
+              if (ApplicationCore.session.signDate != todayCode) {
+                /// 记录的签到日期与当前日期不同
+                ApplicationCore.session.update(signDate: todayCode);
+              }
+            }
+            Flushbar(
+              animationDuration: Duration(milliseconds: 500),
+              backgroundColor: Theme.of(context).primaryColor,
+              boxShadows: [
+                BoxShadow(
+                    color: Theme.of(context).primaryColor,
+                    offset: Offset(0.0, 2.0),
+                    blurRadius: 28.0),
+              ],
+              flushbarStyle: FlushbarStyle.GROUNDED,
+              flushbarPosition: FlushbarPosition.TOP,
+              messageText: Text(
+                response.head.errInfo,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
+              ),
+              duration: Duration(seconds: 3),
+            )..show(context);
+          },
+        ),
+      );
+    });
   }
 
   _buildItem(BuildContext context,

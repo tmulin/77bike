@@ -15,8 +15,10 @@ class PostImageWidget extends StatelessWidget {
 
   final double borderRadius;
 
+  final Function(String image) onTapImage;
+
   const PostImageWidget(this.imageUrl,
-      {Key key, this.width, this.height, this.borderRadius})
+      {Key key, this.width, this.height, this.borderRadius, this.onTapImage})
       : super(key: key);
 
   @override
@@ -25,47 +27,52 @@ class PostImageWidget extends StatelessWidget {
         cloudProcess: ApplicationCore.settings.cloudProcess > 0,
         processor: "!webp");
 
-    return CachedNetworkImage(
-        fadeInDuration: Duration.zero,
-        fadeOutDuration: Duration.zero,
-        cacheManager: CustomCacheManager(),
-        imageUrl: targetImageUrl,
-        httpHeaders: {
-          HttpHeaders.userAgentHeader:
-              "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
-        },
-        imageBuilder: (context, provider) {
-          var imageStream = provider.resolve(ImageConfiguration.empty);
-          imageStream.addListener(
-              ImageStreamListener((ImageInfo image, bool synchronousCall) {},
-                  onError: (dynamic exception, StackTrace stackTrace) {
-            print(
-                "POST IMAGE imageStream ERROR => ${exception} : ${targetImageUrl}");
-            CustomCacheManager().removeFile(targetImageUrl);
-          }));
-          final image = Image(
-            image: provider,
-            fit: BoxFit.cover,
-          );
-          return borderRadius == null
-              ? image
-              : ClipRRect(
-                  borderRadius: BorderRadius.circular(borderRadius),
-                  child: image,
-                );
-        },
-        placeholder: (context, url) => Container(
-            height: 150,
-            child: new Icon(
+    return GestureDetector(
+      onTap: () {
+        if (this.onTapImage != null) this.onTapImage(targetImageUrl);
+      },
+      child: CachedNetworkImage(
+          fadeInDuration: Duration.zero,
+          fadeOutDuration: Duration.zero,
+          cacheManager: CustomCacheManager(),
+          imageUrl: targetImageUrl,
+          httpHeaders: {
+            HttpHeaders.userAgentHeader:
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
+          },
+          imageBuilder: (context, provider) {
+            var imageStream = provider.resolve(ImageConfiguration.empty);
+            imageStream.addListener(
+                ImageStreamListener((ImageInfo image, bool synchronousCall) {},
+                    onError: (dynamic exception, StackTrace stackTrace) {
+              print(
+                  "POST IMAGE imageStream ERROR => ${exception} : ${targetImageUrl}");
+              CustomCacheManager().removeFile(targetImageUrl);
+            }));
+            final image = Image(
+              image: provider,
+              fit: BoxFit.cover,
+            );
+            return borderRadius == null
+                ? image
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    child: image,
+                  );
+          },
+          placeholder: (context, url) => Container(
+              height: 150,
+              child: new Icon(
+                Icons.image,
+                color: Colors.grey.shade200,
+              )),
+          errorWidget: (context, url, error) {
+            print("Load POST IMAGE ERROR => $error : ${targetImageUrl}");
+            return new Icon(
               Icons.image,
               color: Colors.grey.shade200,
-            )),
-        errorWidget: (context, url, error) {
-          print("Load POST IMAGE ERROR => $error : ${targetImageUrl}");
-          return new Icon(
-            Icons.image,
-            color: Colors.grey.shade200,
-          );
-        });
+            );
+          }),
+    );
   }
 }

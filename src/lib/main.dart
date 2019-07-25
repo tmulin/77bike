@@ -54,6 +54,8 @@ void main() async {
     }
   });
 
+  ApplicationCore.checkMessages();
+
   runApp(MainApp());
 }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qiqi_bike/api/mobcent_client.dart';
+import 'package:qiqi_bike/core/application.dart';
+import 'package:qiqi_bike/core/messages.dart';
 import 'package:qiqi_bike/models/message/message_pmsessionlist.dart';
 import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
@@ -77,6 +79,7 @@ class _MessagePageState extends State<MessagePage> {
 
   _buildMenuItem(BuildContext context,
       {String title,
+      int badgeValue = 0,
       IconData icon,
       Color bgColor,
       Widget trailing,
@@ -90,16 +93,34 @@ class _MessagePageState extends State<MessagePage> {
         child: Center(child: Icon(icon, color: Colors.white, size: 24)),
       ),
       title: Text(title),
-      trailing: trailing ??
-          Icon(
-            Icons.chevron_right,
-            color: Colors.grey.shade400,
-          ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (badgeValue > 0)
+            Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                    color: Colors.red, borderRadius: BorderRadius.circular(20)),
+                child: Center(
+                  child: Text(badgeValue.toString(),
+                      style: TextStyle(color: Colors.white, fontSize: 12)),
+                )),
+          trailing ??
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey.shade400,
+              ),
+        ],
+      ),
       onTap: route == null
           ? null
-          : () {
-              Navigator.of(context)
+          : () async {
+              await Navigator.of(context)
                   .push(MaterialPageRoute(builder: (context) => route));
+
+              /// 路由跳转返回之后,重新检查消息
+              ApplicationCore.checkMessages();
             },
     );
   }
@@ -109,19 +130,27 @@ class _MessagePageState extends State<MessagePage> {
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
       children: <Widget>[
-        _buildMenuItem(context,
-            title: "提到我的",
-            icon: Icons.alternate_email,
-            bgColor: Colors.amber.shade500),
+        ScopedModelDescendant<MessagesModel>(
+            builder: (context, _, messages) => _buildMenuItem(context,
+                title: "提到我的",
+                badgeValue: messages.atMeInfo.count,
+                icon: Icons.alternate_email,
+                bgColor: Colors.amber.shade500)),
         Divider(height: 0),
-        _buildMenuItem(context,
-            title: "评论",
-            icon: Icons.comment,
-            bgColor: Colors.blue.shade500,
-            route: MessageNotifiesPage()),
+        ScopedModelDescendant<MessagesModel>(
+            builder: (context, _, messages) => _buildMenuItem(context,
+                title: "评论",
+                badgeValue: messages.replyInfo.count,
+                icon: Icons.comment,
+                bgColor: Colors.blue.shade500,
+                route: MessageNotifiesPage())),
         Divider(height: 0),
-        _buildMenuItem(context,
-            title: "好友", icon: Icons.person_add, bgColor: Colors.redAccent),
+        ScopedModelDescendant<MessagesModel>(
+            builder: (context, _, messages) => _buildMenuItem(context,
+                title: "好友",
+                badgeValue: messages.friendInfo.count,
+                icon: Icons.person_add,
+                bgColor: Colors.redAccent)),
         Divider(height: 0)
       ],
     );

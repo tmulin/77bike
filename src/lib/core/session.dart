@@ -2,6 +2,7 @@ import 'package:scoped_model/scoped_model.dart';
 
 class Session extends Model {
   int uid;
+  int signDate;
   String token;
   String secret;
   String avatar;
@@ -9,6 +10,7 @@ class Session extends Model {
 
   Session(
       {this.uid = 0,
+      this.signDate = 0,
       this.token = "",
       this.secret = "",
       this.avatar = "",
@@ -16,6 +18,7 @@ class Session extends Model {
 
   void clear() {
     this.uid = 0;
+    this.signDate = 0;
     this.token = "";
     this.secret = "";
     this.avatar = "";
@@ -24,11 +27,17 @@ class Session extends Model {
   }
 
   void update(
-      {int uid, String token, String secret, String avatar, String userName}) {
+      {int uid,
+      int signDate,
+      String token,
+      String secret,
+      String avatar,
+      String userName}) {
     this.uid = uid ?? this.uid;
     this.token = token ?? this.token;
     this.secret = secret ?? this.secret;
     this.avatar = avatar ?? this.avatar;
+    this.signDate = signDate ?? this.signDate;
     this.userName = userName ?? this.userName;
     notifyListeners();
   }
@@ -38,6 +47,7 @@ class Session extends Model {
         token = json['token'] ?? "",
         secret = json['secret'] ?? "",
         avatar = json['avatar'] ?? "",
+        signDate = json['signDate'] ?? 0,
         userName = json['userName'] ?? "";
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +55,7 @@ class Session extends Model {
         'token': token,
         'secret': secret,
         'avatar': avatar,
+        'signDate': signDate ?? 0,
         'userName': userName
       };
 }
