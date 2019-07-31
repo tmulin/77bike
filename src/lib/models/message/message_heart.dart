@@ -27,7 +27,7 @@ class ResponseBody {
 
   CountTime atMeInfo;
 
-  dynamic pmInfos;
+  List<PmInfo> pmInfos;
 }
 
 class HeartPeriod {
@@ -46,6 +46,15 @@ class CountTime {
   CountTime({this.count = 0, this.time = "0"});
 }
 
+class PmInfo {
+  int fromUid;
+  String name;
+  String avatar;
+  int plid;
+  int hasPrev;
+  List<dynamic> msgList;
+}
+
 @GenSerializer()
 class MessageHeartResponseSerializer extends Serializer<MessageHeartResponse>
     with _$MessageHeartResponseSerializer {}
@@ -62,6 +71,9 @@ class HeartPeriodSerializer extends Serializer<HeartPeriod>
 class CountTimeSerializer extends Serializer<CountTime>
     with _$CountTimeSerializer {}
 
+@GenSerializer()
+class PmInfoSerializer extends Serializer<PmInfo> with _$PmInfoSerializer {}
+
 const _sample = {
   "rs": 1,
   "errcode": "",
@@ -72,10 +84,22 @@ const _sample = {
     "alert": 0
   },
   "body": {
-    "externInfo": {"heartPeriod": "30000", "pmPeriod": "30000"},
-    "friendInfo": {"count": 0, "time": "0"},
-    "replyInfo": {"count": 0, "time": "0"},
-    "atMeInfo": {"count": 0, "time": "0"},
-    "pmInfos": []
+    "externInfo": null,
+    "userInfo": {
+      "uid": 116756,
+      "name": "caimumu",
+      "avatar":
+          "http:\/\/bbs.77bike.com\/attachment\/upload\/middle\/56\/116756.jpg"
+    },
+    "pmList": [
+      {
+        "fromUid": 167510,
+        "name": "tmulin",
+        "avatar": "http:\/\/bbs.77bike.com\/images\/face\/none.gif",
+        "plid": 1492477,
+        "hasPrev": 0,
+        "msgList": []
+      }
+    ]
   }
 };

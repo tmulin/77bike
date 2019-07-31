@@ -23,15 +23,21 @@ class PostListAction {
   static const int orderByDesc = 1;
 
   static Map<String, dynamic> buildRequest(
-      {int topicId, int authorId = 0, int page = 1, int order = orderByAsc}) {
+      {int topicId,
+      int boardId = 0,
+      int authorId = 0,
+      int page = 1,
+      int pageSize = 10,
+      int order = orderByAsc}) {
     assert(topicId != null);
     assert(page != null && page > 0);
     return {
       "topicId": topicId,
-      "authorId": authorId,
+      if (boardId > 0) "boardId": boardId,
+      if (authorId > 0) "authorId": authorId,
       "order": order,
       "page": page,
-      "pageSize": 10
+      "pageSize": pageSize
     };
   }
 

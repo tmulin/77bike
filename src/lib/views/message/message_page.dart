@@ -7,6 +7,7 @@ import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
 import '../master_page.dart';
+import 'message_chat_page.dart';
 import 'message_notifies_page.dart';
 
 class MessagePage extends StatefulWidget {
@@ -135,7 +136,8 @@ class _MessagePageState extends State<MessagePage> {
                 title: "提到我的",
                 badgeValue: messages.atMeInfo.count,
                 icon: Icons.alternate_email,
-                bgColor: Colors.amber.shade500)),
+                bgColor: Colors.amber.shade500,
+                route: MessageNotifiesPage(title: "提到我的", type: "at"))),
         Divider(height: 0),
         ScopedModelDescendant<MessagesModel>(
             builder: (context, _, messages) => _buildMenuItem(context,
@@ -143,7 +145,7 @@ class _MessagePageState extends State<MessagePage> {
                 badgeValue: messages.replyInfo.count,
                 icon: Icons.comment,
                 bgColor: Colors.blue.shade500,
-                route: MessageNotifiesPage())),
+                route: MessageNotifiesPage(title: "评论", type: "post"))),
         Divider(height: 0),
         ScopedModelDescendant<MessagesModel>(
             builder: (context, _, messages) => _buildMenuItem(context,
@@ -170,6 +172,17 @@ class _MessagePageState extends State<MessagePage> {
         child: Text(pmSession.toUserName),
       ),
       subtitle: Text(pmSession.lastSummary, overflow: TextOverflow.ellipsis),
+      onTap: () async {
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => MessageChatPage(
+                pmid: pmSession.pmid,
+                plid: pmSession.plid,
+                userId: pmSession.toUserId,
+                userName: pmSession.toUserName)));
+        await _dataSource.reload();
+        setState(() {
+        });
+      },
     );
   }
 }

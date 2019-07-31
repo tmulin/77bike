@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qiqi_bike/api/mobcent_client.dart';
 import 'package:qiqi_bike/common/data_helper.dart';
+import 'package:qiqi_bike/core/application.dart';
 import 'package:qiqi_bike/models/forum/forum_search.dart';
 import 'package:qiqi_bike/views/topic_page.dart';
 import 'package:qiqi_bike/widgets/topic_list_ending.dart';
@@ -62,8 +63,10 @@ class _UserRepliesPageState extends State<UserRepliesPage> {
   }
 
   AppBar _buildAppBar(BuildContext context) {
+    final String title =
+        widget.userId == ApplicationCore.session.uid ? "我" : "Ta";
     return AppBar(
-      title: Text("我发表的帖子"),
+      title: Text("${title}回复的帖子"),
     );
   }
 

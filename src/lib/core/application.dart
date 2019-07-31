@@ -167,4 +167,9 @@ class ApplicationCore {
       print("消息检查失败 => ${exp}");
     }
   }
+
+  static Map<int, int> _favoriteCache = {};
+
+  /// 收藏缓存(操作有延迟)
+  static Map<int, int> get favoriteCache => _favoriteCache;
 }

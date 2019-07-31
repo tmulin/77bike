@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:qiqi_bike/api/mobcent_client.dart';
 import 'package:qiqi_bike/common/data_helper.dart';
 import 'package:qiqi_bike/core/application.dart';
-import 'package:qiqi_bike/models/forum/forum_search.dart';
+import 'package:qiqi_bike/models/forum/forum_topiclist.dart';
 import 'package:qiqi_bike/views/topic_page.dart';
 import 'package:qiqi_bike/widgets/topic_image_widget.dart';
 import 'package:qiqi_bike/widgets/topic_list_ending.dart';
@@ -11,16 +11,16 @@ import 'package:scoped_model/scoped_model.dart';
 
 import '../board_page.dart';
 
-class UserTopicsPage extends StatefulWidget {
+class UserFavoritesPage extends StatefulWidget {
   final int userId;
 
-  UserTopicsPage({@required this.userId});
+  UserFavoritesPage({@required this.userId});
 
   @override
-  _UserTopicsPageState createState() => _UserTopicsPageState();
+  _UserFavoritesPageState createState() => _UserFavoritesPageState();
 }
 
-class _UserTopicsPageState extends State<UserTopicsPage> {
+class _UserFavoritesPageState extends State<UserFavoritesPage> {
   ScrollController _scrollController;
   _DataSource _dataSource;
   GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
@@ -29,7 +29,7 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
   void initState() {
     super.initState();
 
-    _dataSource = _DataSource("用户发帖列表", userId: widget.userId);
+    _dataSource = _DataSource("我的收藏列表", userId: widget.userId);
     _dataSource.loadMore().then((value) {
       if (!value) {
         _scaffoldKey.currentState.showSnackBar(SnackBar(
@@ -65,10 +65,8 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
   }
 
   AppBar _buildAppBar(BuildContext context) {
-    final String title =
-        widget.userId == ApplicationCore.session.uid ? "我" : "Ta";
     return AppBar(
-      title: Text("${title}发表的帖子"),
+      title: Text("我收藏的帖子"),
     );
   }
 
@@ -79,7 +77,11 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
         builder: (context, child, model) {
           print("ScopedModelDescendant ${model.name} build ...");
 
-          final itemCount = model.items.length + 1;
+          final items = model.items.where((item) {
+            final favor = ApplicationCore.favoriteCache[item.topic_id];
+            return favor == null || favor == 1;
+          }).toList();
+          final itemCount = items.length + 1;
 
           return RefreshIndicator(
             onRefresh: () {
@@ -103,7 +105,7 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
                     });
                   });
                 }
-                return _buildTopicItemView(context, index, model.items[index]);
+                return _buildTopicItemView(context, index, items[index]);
               },
             ),
           );
@@ -112,7 +114,7 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
     );
   }
 
-  _buildTopicItemView(BuildContext context, int index, SearchTopic model) {
+  _buildTopicItemView(BuildContext context, int index, Topic model) {
     String imgUrl = model.pic_path?.replaceAll(
         "/mobcent/app/runtime/images/xgsize/", "/attachment/thumb/");
 
@@ -157,13 +159,14 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
       child: Material(
         color: Colors.white,
         child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
+          onTap: () async {
+            await Navigator.of(context).push(MaterialPageRoute(
                 builder: (context) => TopicPage(
                       boardId: model.board_id,
                       topicId: model.topic_id,
                       title: model.title,
                     )));
+            setState(() {});
           },
           child: widget,
         ),
@@ -171,7 +174,7 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
     );
   }
 
-  _builtTopicTitleWidget(BuildContext context, SearchTopic model) {
+  _builtTopicTitleWidget(BuildContext context, Topic model) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Text(
@@ -183,8 +186,7 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
     );
   }
 
-  _buildTopicContentWidget(BuildContext context, SearchTopic model,
-      {Widget suffix}) {
+  _buildTopicContentWidget(BuildContext context, Topic model, {Widget suffix}) {
     final content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Text(
@@ -203,7 +205,7 @@ class _UserTopicsPageState extends State<UserTopicsPage> {
     }
   }
 
-  _buildTopicBottomWidget(BuildContext context, SearchTopic model) {
+  _buildTopicBottomWidget(BuildContext context, Topic model) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -256,11 +258,11 @@ class _DataSource extends Model {
   _DataSource(this.name, {@required this.userId});
 
   int _itemCount = 0;
-  List<SearchTopic> _items = [];
+  List<Topic> _items = [];
 
   int get itemCount => _itemCount;
 
-  List<SearchTopic> get items => _items;
+  List<Topic> get items => _items;
 
   bool _loading = false;
   int _hasMore = 1;
@@ -287,7 +289,7 @@ class _DataSource extends Model {
     print("DataSource ${name} | U:${userId}  loading ...");
     try {
       var response = await MobcentClient.instance
-          .userTopicList(this.userId, page: _nextPage, pageSize: 20);
+          .userListFavorites(page: _nextPage, pageSize: 10);
       if (!response.noError) {
         this._message = response.head.errInfo;
         notifyListeners();

@@ -12,6 +12,7 @@ import 'package:qiqi_bike/models/user/user_userinfo.dart';
 import 'package:qiqi_bike/update/update_dialog.dart';
 import 'package:qiqi_bike/update/update_service.dart';
 import 'package:qiqi_bike/views/discovery/user_albums_page.dart';
+import 'package:qiqi_bike/views/discovery/user_favorites_page.dart';
 import 'package:qiqi_bike/widgets/popup_menu_ex.dart' as ex;
 import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
@@ -116,6 +117,11 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               title: "我的回复",
               icon: Icon(Icons.speaker_notes),
               route: UserRepliesPage(userId: ApplicationCore.session.uid)),
+          Divider(height: 0),
+          _buildItem(context,
+              title: "我的收藏",
+              icon: Icon(Icons.favorite_border),
+              route: UserFavoritesPage(userId: ApplicationCore.session.uid)),
           Divider(height: 0),
           _buildItem(
             context,

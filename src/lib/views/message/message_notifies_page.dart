@@ -8,6 +8,11 @@ import 'package:scoped_model/scoped_model.dart';
 import '../topic_page.dart';
 
 class MessageNotifiesPage extends StatefulWidget {
+  final String type;
+  final String title;
+
+  MessageNotifiesPage({this.type = "post", this.title = "评论"});
+
   @override
   _MessageNotifiesPageState createState() => _MessageNotifiesPageState();
 }
@@ -18,7 +23,7 @@ class _MessageNotifiesPageState extends State<MessageNotifiesPage> {
   @override
   void initState() {
     super.initState();
-    _dataSource = _DataSource("评论");
+    _dataSource = _DataSource(widget.title, type: widget.type);
     _dataSource.reload().then((value) {
       print(
           "MessageNotifiesPage::load => ${value} :: ${_dataSource.items.length}");
@@ -32,7 +37,7 @@ class _MessageNotifiesPageState extends State<MessageNotifiesPage> {
       backgroundColor: Color(0xfff5f5f5),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: Text("评论"),
+        title: Text(widget.title),
         centerTitle: true,
       ),
       body: _buildPageBody(context),
@@ -127,11 +132,12 @@ class _MessageNotifiesPageState extends State<MessageNotifiesPage> {
 class _DataSource extends Model {
   /// 数据源名称
   final String name;
+  final String type;
 
   int _itemCount = 0;
   List<Notify> _items = [];
 
-  _DataSource(this.name);
+  _DataSource(this.name, {@required this.type});
 
   int get itemCount => _itemCount;
 
@@ -169,8 +175,8 @@ class _DataSource extends Model {
 
     print("DataSource ${name} | P:${_nextPage} loading ...");
     try {
-      var response =
-          await MobcentClient.instance.messageListNotify(page: _nextPage);
+      var response = await MobcentClient.instance
+          .messageListNotify(page: _nextPage, type: this.type);
       if (!response.noError) {
         notifyListeners();
         return false;

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:qiqi_bike/api/mobcent_client.dart';
@@ -5,6 +7,9 @@ import 'package:qiqi_bike/common/data_helper.dart';
 import 'package:qiqi_bike/core/session.dart';
 import 'package:qiqi_bike/core/settings.dart';
 import 'package:qiqi_bike/models/forum/forum_topiclist.dart' as tp;
+import 'package:qiqi_bike/models/forum/forum_topiclist.dart';
+import 'package:qiqi_bike/storage/forum_cache_manager.dart';
+import 'package:qiqi_bike/storage/forum_topic_summary.dart';
 import 'package:qiqi_bike/views/topic_page.dart';
 import 'package:qiqi_bike/views/user_login_page.dart';
 import 'package:qiqi_bike/widgets/forum_search_button.dart';
@@ -13,6 +18,7 @@ import 'package:qiqi_bike/widgets/topic_list_ending.dart';
 import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
+import 'discovery/user_index_page.dart';
 import 'image_viewer.dart';
 import 'master_page.dart';
 
@@ -50,6 +56,40 @@ class _DataSource extends Model {
       return true;
     }
     _loading = true;
+    if (clear) {
+      try {
+        TopicKind topicKind = TopicKind.New;
+        switch (sortBy) {
+          case tp.TopicListAction.sortByNew:
+            topicKind = TopicKind.New;
+            break;
+          case tp.TopicListAction.sortByAll:
+            topicKind = TopicKind.All;
+            break;
+          case tp.TopicListAction.sortByMarrow:
+            topicKind = TopicKind.Essence;
+            break;
+          case tp.TopicListAction.sortByTop:
+            topicKind = TopicKind.Top;
+            break;
+        }
+        final topics = await ForumCacheManager.instance.loadTopicSummaries(
+            boardId,
+            page: 1,
+            pageSize: 20,
+            topicKind: topicKind);
+
+        if (topics != null && topics.length > 0) {
+          this.items.clear();
+          this.items.addAll(topics.map((item) => item.toTopic()));
+          print("主题缓存数据加载 => ${topics.length}");
+        } else {
+          print("主题缓存数据不存在 ...");
+        }
+      } catch (exp) {
+        print("主题缓存加载失败 => ${exp}");
+      }
+    }
     notifyListeners();
     print(
         "DataSource ${name} | B:${boardId} F:${filterId} P:${_nextPage} S:${sortBy} loading ...");
@@ -66,6 +106,21 @@ class _DataSource extends Model {
       /// 刷新数据源时,清除旧数据(在刷新成功之后再清除旧数据,避免先清空数据导致的页面闪烁)
       if (clear) {
         this._items.clear();
+      }
+
+      /// 刷新缓存数据
+      try {
+        final int totalCount =
+            ["all", "new"].contains(sortBy) ? response.total_num : null;
+        final int essenceCount = "marrow" == sortBy ? response.total_num : null;
+        final boardResult = await ForumCacheManager.instance
+            .cacheBoardSummaries(boardId,
+                totalCount: totalCount, essenceCount: essenceCount);
+
+        final cacheResult =
+            await ForumCacheManager.instance.cacheTopicSummaries(response.list);
+      } catch (exp) {
+        print("主题缓存更新失败 => ${exp}");
       }
 
       /// 页码+1
@@ -88,6 +143,128 @@ class _DataSource extends Model {
   }
 }
 
+class _CachedDataSource extends Model {
+  final int boardId;
+  final int filterId = 0;
+  final TopicKind topicKind;
+
+  /// 数据源名称
+  final String name;
+
+  String get sortBy {
+    switch (topicKind) {
+      case TopicKind.All:
+        return TopicListAction.sortByAll;
+      case TopicKind.New:
+        return TopicListAction.sortByNew;
+      case TopicKind.Essence:
+        return TopicListAction.sortByMarrow;
+      case TopicKind.Top:
+        return TopicListAction.sortByTop;
+      default:
+        return TopicListAction.sortByAll;
+    }
+  }
+
+  _CachedDataSource(this.name,
+      {this.boardId = 0, this.topicKind = TopicKind.New});
+
+  int _itemCount = 0;
+
+  int get itemCount => _itemCount;
+
+  List<tp.Topic> _items = new List();
+
+  List<tp.Topic> get items => _items;
+
+  int _page = 1;
+  int _pageSize = 20;
+
+  Future<bool> load() async {
+    final int page = _page;
+    final int pageSize = _pageSize;
+    final result = await _loadFromCache(page, pageSize);
+
+    print(
+        "缓存数据源[${name}] 版块${boardId}@${topicKind} :: 加载完成, 记录数 ${this.items.length} / ${this.itemCount}");
+
+    /// 翻页
+    _page = page + 1;
+
+    return result;
+  }
+
+  Future<bool> _loadFromCache(int page, int pageSize) async {
+    /// 从缓存数据库中加载数据
+    final board = await ForumCacheManager.instance.getBoardSummary(boardId);
+    print(
+        "缓存数据源[${name}] 版块${boardId}@${topicKind} :: 记录数 => 全部:${board.total_count}, 精华:${board.essence_count}, 置顶:${board.top_count}");
+
+    switch (this.topicKind) {
+      case TopicKind.All:
+      case TopicKind.New:
+        this._itemCount = board.total_count;
+        break;
+      case TopicKind.Essence:
+        this._itemCount = board.essence_count;
+        break;
+      case TopicKind.Top:
+        this._itemCount = board.top_count;
+        break;
+    }
+
+    final items = await ForumCacheManager.instance.loadTopicSummaries(boardId,
+        page: page, pageSize: pageSize, topicKind: topicKind);
+
+    /// 转换为显示所需的数据模型
+    final topics = items.map((item) => item.toTopic()).toList();
+
+    /// 合并新加载的数据到已加载数据列表
+    final rangeStart = min((page - 1) * pageSize, _items.length);
+    final rangeEnd = min(rangeStart + pageSize - 1, _items.length);
+    this._items.replaceRange(rangeStart, rangeEnd, topics);
+
+    /// 触发数据变更通知
+    notifyListeners();
+
+    print(
+        "缓存数据源[${name}] 版块${boardId}@${topicKind} :: 范围替换 => ${rangeStart} TO ${rangeEnd} | ${topics.length} 记录...");
+
+    /// 启动网络数据异步刷新,不等待刷新结果直接返回
+    _refreshCache(page, pageSize);
+    return true;
+  }
+
+  Future<bool> _refreshCache(int page, int pageSize) async {
+    var response = await MobcentClient.instance.topicList(
+        boardId: boardId, page: page, pageSize: pageSize, sortBy: sortBy);
+    if (response.noError) {
+      final int totalCount = [TopicKind.All, TopicKind.New].contains(topicKind)
+          ? response.total_num
+          : null;
+      final int essenceCount =
+          TopicKind.Essence == topicKind ? response.total_num : null;
+      final int topCount =
+          TopicKind.Top == topicKind ? response.total_num : null;
+
+      /// 更新版块内主题数量汇总信息
+      final boardResult = await ForumCacheManager.instance.cacheBoardSummaries(
+          boardId,
+          totalCount: totalCount,
+          essenceCount: essenceCount,
+          topCount: topCount);
+
+      /// 更新版块内主题摘要信息列表
+      final topicsResult =
+          await ForumCacheManager.instance.cacheTopicSummaries(response.list);
+
+      /// 触发数据变更通知,重新加载数据
+      notifyListeners();
+      return true;
+    }
+  }
+}
+
 class IndexPage extends StatefulWidget {
   PageRefreshController controller;
 
@@ -99,6 +276,8 @@ class IndexPage extends StatefulWidget {
 
 class _IndexPageState extends State<IndexPage> {
   List<_DataSource> _dataSources = List(2);
+
+  // List<_CachedDataSource> _cacheDataSources = List(2);
   List<ScrollController> _scrollControllers = List(2);
   List<GlobalKey<RefreshIndicatorState>> _refreshIndicatorKeys =
       List.generate(2, (_) => GlobalKey<RefreshIndicatorState>());
@@ -113,7 +292,14 @@ class _IndexPageState extends State<IndexPage> {
     _dataSources[1] =
         _DataSource("精华", sortBy: tp.TopicListAction.sortByMarrow);
 
-    _dataSources.forEach((ds) => ds.loadMore());
+//    _cacheDataSources[0] = _CachedDataSource("最新", topicKind: TopicKind.New);
+//    _cacheDataSources[0].load();
+//
+//    _cacheDataSources[1] =
+//        _CachedDataSource("精华", topicKind: TopicKind.Essence);
+//    _cacheDataSources[1].load();
+
+    _dataSources.forEach((ds) => ds.reload());
 
     for (int i = 0; i < _scrollControllers.length; i++) {
       final _scrollController = ScrollController();
@@ -124,6 +310,7 @@ class _IndexPageState extends State<IndexPage> {
             _scrollController.position.pixels) {
           print("ScrollController ${index} Reach Bottom , loadMore ...");
           _dataSources[i].loadMore();
+          // _cacheDataSources[i].load();
         }
       });
     }
@@ -222,6 +409,10 @@ class _IndexPageState extends State<IndexPage> {
           await _dataSources[index].reload();
           _scrollControllers[index].animateTo(0,
               duration: Duration(milliseconds: 300), curve: Curves.bounceInOut);
+
+//          await _cacheDataSources[0].load();
+//          await _cacheDataSources[1].load();
+
           return Future.value();
         },
         child: widget);
@@ -468,20 +659,38 @@ _builtTopicTitleWidget(BuildContext context, tp.Topic model) {
 
 /// 小头像模式用户信息
 _buildUserDetailWidgetMini(BuildContext context, tp.Topic model) {
+  final showUserHomePage = () {
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) => UserIndexPage(
+              userId: model.user_id,
+              userName: model.user_nick_name,
+              userAvatar: model.userAvatar,
+            )));
+  };
   return Row(
     children: <Widget>[
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: UserAvatarWidget(
-          model.userAvatar,
-          width: 24.0,
-          height: 24.0,
-          borderRadius: 4,
+      GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: showUserHomePage,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: UserAvatarWidget(
+                model.userAvatar,
+                width: 24.0,
+                height: 24.0,
+                borderRadius: 4,
+              ),
+            ),
+            Text(
+              model.user_nick_name,
+              style: TextStyle(color: Colors.grey.shade800, fontSize: 16),
+            ),
+          ],
         ),
-      ),
-      Text(
-        model.user_nick_name,
-        style: TextStyle(color: Colors.grey.shade800, fontSize: 16),
       ),
     ],
   );

@@ -45,6 +45,9 @@ abstract class _$ResponseBodySerializer implements Serializer<ResponseBody> {
   Serializer<CountTime> __countTimeSerializer;
   Serializer<CountTime> get _countTimeSerializer =>
       __countTimeSerializer ??= CountTimeSerializer();
+  Serializer<PmInfo> __pmInfoSerializer;
+  Serializer<PmInfo> get _pmInfoSerializer =>
+      __pmInfoSerializer ??= PmInfoSerializer();
   @override
   Map<String, dynamic> toMap(ResponseBody model) {
     if (model == null) return null;
@@ -55,7 +58,11 @@ abstract class _$ResponseBodySerializer implements Serializer<ResponseBody> {
         ret, 'friendInfo', _countTimeSerializer.toMap(model.friendInfo));
     setMapValue(ret, 'replyInfo', _countTimeSerializer.toMap(model.replyInfo));
     setMapValue(ret, 'atMeInfo', _countTimeSerializer.toMap(model.atMeInfo));
-    setMapValue(ret, 'pmInfos', passProcessor.serialize(model.pmInfos));
+    setMapValue(
+        ret,
+        'pmInfos',
+        codeIterable(
+            model.pmInfos, (val) => _pmInfoSerializer.toMap(val as PmInfo)));
     return ret;
   }
 
@@ -67,7 +74,8 @@ abstract class _$ResponseBodySerializer implements Serializer<ResponseBody> {
     obj.friendInfo = _countTimeSerializer.fromMap(map['friendInfo'] as Map);
     obj.replyInfo = _countTimeSerializer.fromMap(map['replyInfo'] as Map);
     obj.atMeInfo = _countTimeSerializer.fromMap(map['atMeInfo'] as Map);
-    obj.pmInfos = passProcessor.deserialize(map['pmInfos']);
+    obj.pmInfos = codeIterable<PmInfo>(map['pmInfos'] as Iterable,
+        (val) => _pmInfoSerializer.fromMap(val as Map));
     return obj;
   }
 }
@@ -110,6 +118,36 @@ abstract class _$CountTimeSerializer implements Serializer<CountTime> {
     final obj = CountTime();
     obj.count = map['count'] as int;
     obj.time = map['time'] as String;
+    return obj;
+  }
+}
+
+abstract class _$PmInfoSerializer implements Serializer<PmInfo> {
+  @override
+  Map<String, dynamic> toMap(PmInfo model) {
+    if (model == null) return null;
+    Map<String, dynamic> ret = <String, dynamic>{};
+    setMapValue(ret, 'fromUid', model.fromUid);
+    setMapValue(ret, 'name', model.name);
+    setMapValue(ret, 'avatar', model.avatar);
+    setMapValue(ret, 'plid', model.plid);
+    setMapValue(ret, 'hasPrev', model.hasPrev);
+    setMapValue(ret, 'msgList',
+        codeIterable(model.msgList, (val) => passProcessor.serialize(val)));
+    return ret;
+  }
+
+  @override
+  PmInfo fromMap(Map map) {
+    if (map == null) return null;
+    final obj = PmInfo();
+    obj.fromUid = map['fromUid'] as int;
+    obj.name = map['name'] as String;
+    obj.avatar = map['avatar'] as String;
+    obj.plid = map['plid'] as int;
+    obj.hasPrev = map['hasPrev'] as int;
+    obj.msgList = codeIterable<dynamic>(
+        map['msgList'] as Iterable, (val) => passProcessor.deserialize(val));
     return obj;
   }
 }

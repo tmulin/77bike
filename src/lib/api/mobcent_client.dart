@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_native_image/flutter_native_image.dart';
 import 'package:path/path.dart' as iop;
 import 'package:qiqi_bike/common/data_helper.dart';
@@ -14,17 +15,22 @@ import 'package:qiqi_bike/models/forum/forum_forumlist.dart';
 import 'package:qiqi_bike/models/forum/forum_postlist.dart';
 import 'package:qiqi_bike/models/forum/forum_search.dart';
 import 'package:qiqi_bike/models/forum/forum_sendattachmentex.dart';
+import 'package:qiqi_bike/models/forum/forum_support.dart';
 import 'package:qiqi_bike/models/forum/forum_topicadmin.dart';
 import 'package:qiqi_bike/models/forum/forum_topiclist.dart';
 import 'package:qiqi_bike/models/message/message_heart.dart';
 import 'package:qiqi_bike/models/message/message_notifylist.dart';
+import 'package:qiqi_bike/models/message/message_pmadmin.dart';
+import 'package:qiqi_bike/models/message/message_pmsession.dart';
 import 'package:qiqi_bike/models/message/message_pmsessionlist.dart';
 import 'package:qiqi_bike/models/user/user_albumlist.dart';
+import 'package:qiqi_bike/models/user/user_favorite.dart';
 import 'package:qiqi_bike/models/user/user_getsetting.dart';
 import 'package:qiqi_bike/models/user/user_login.dart';
 import 'package:qiqi_bike/models/user/user_register.dart';
 import 'package:qiqi_bike/models/user/user_sign.dart';
 import 'package:qiqi_bike/models/user/user_topiclist.dart';
+import 'package:qiqi_bike/models/user/user_useradmin.dart';
 import 'package:qiqi_bike/models/user/user_userinfo.dart';
 
 /// https://github.com/appbyme/mobcent-discuz/tree/84a86890c6e116a0ebfd25058c5e436868e7be80/app/controllers/user
@@ -79,8 +85,15 @@ class MobcentClient {
     return _instance;
   }
 
-  Options _buildOptions() {
-    return Options(headers: {});
+  Options _buildOptions({int timeout}) {
+    if (timeout == null)
+      return Options(headers: {});
+    else
+      return Options(
+          headers: {},
+          connectTimeout: timeout,
+          sendTimeout: timeout,
+          receiveTimeout: timeout);
   }
 
   /// (dynamic, StackTrace) -> FutureOr<T>
@@ -140,17 +153,19 @@ class MobcentClient {
 
   /// 返回map格式的请求body
   Future<dynamic> _post(String action,
-      {Map<String, dynamic> data,
+      {int timeout,
+      Map<String, dynamic> data,
       Map<String, dynamic> queryParameters,
       void Function(int count, int total) onSendProgress}) async {
+    Options options = _buildOptions(timeout: timeout).merge(
+        responseType: ResponseType.json,
+        contentType: ContentType.parse("application/x-www-form-urlencoded"));
+
     Response response = await _dio
         .post<Map<String, dynamic>>("?r=${action}",
             data: data,
             queryParameters: queryParameters,
-            options: _buildOptions().merge(
-                responseType: ResponseType.json,
-                contentType:
-                    ContentType.parse("application/x-www-form-urlencoded")),
+            options: options,
             onSendProgress: onSendProgress)
         .catchError(dioErrorTransformer);
     return response.data;
@@ -276,11 +291,13 @@ class MobcentClient {
       {int boardId = 0,
       int filterId = 0,
       int page = 1,
+      int pageSize = 20,
       String sortBy = TopicListAction.sortByNew}) async {
     Map<String, dynamic> data = TopicListAction.buildRequest(
         boardId: boardId ?? 0,
         filterId: filterId ?? 0,
         page: page ?? 1,
+        pageSize: pageSize ?? 20,
         isImageList: 1,
         isRatio: 0,
         sortBy: sortBy ?? TopicListAction.sortByNew);
@@ -291,6 +308,21 @@ class MobcentClient {
     assert(response is Map);
 
     return TopicListAction.parseResponse(response);
+  }
+
+  /// 点赞支持
+  /// postId : reply_post_id
+  Future<MobcentResponse> forumSupport(
+      {@required int topicId, int postId = 0, String type = 'topic'}) async {
+    Map<String, dynamic> data =
+        ForumSupportAction.buildRequest(tid: topicId, pid: postId, type: type);
+
+    var response = await _post(ForumSupportAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+
+    assert(response is Map);
+
+    return ForumSupportAction.parseResponse(response);
   }
 
   /// 最新帖子
@@ -338,11 +370,18 @@ class MobcentClient {
    */
   Future<PostListResponse> postList(
       {int topicId,
+      int boardId = 0,
       int authorId = 0,
       int page = 1,
+      int pageSize = 10,
       int order: PostListAction.orderByAsc}) async {
     Map<String, dynamic> data = PostListAction.buildRequest(
-        topicId: topicId, authorId: authorId, page: page, order: order);
+        topicId: topicId,
+        boardId: boardId,
+        authorId: authorId,
+        page: page,
+        pageSize: pageSize,
+        order: order);
 
     var response = await _post(PostListAction.action,
         data: ApplicationCore.buildCommonParameters()..addAll(data));
@@ -425,7 +464,8 @@ class MobcentClient {
   /// argument 使用 SendAttachmentAction 的build方法构建
   Future<SendAttachmentResponse> sendAttactment(
       Map<String, String> arguments, List<File> attachments,
-      {void Function(int count, int total) onSendProgress}) async {
+      {void Function(int count, int total) onSendProgress,
+      int timeout = 120000}) async {
     Map<String, dynamic> parameters = ApplicationCore.buildCommonParameters()
       ..addAll(arguments);
 
@@ -453,6 +493,7 @@ class MobcentClient {
 
     var response = await _post(SendAttachmentAction.action,
         data: formData,
+        timeout: timeout,
         queryParameters: parameters,
         onSendProgress: onSendProgress);
 
@@ -484,10 +525,24 @@ class MobcentClient {
     return MessagePmSessionListAction.parseResponse(response);
   }
 
+  Future<MessagePmSessionResponse> messageGetPmSession(
+      {int pmid, int plid, int fromUid}) async {
+    Map<String, dynamic> data = MessagePmSessionAction.buildRequest(
+        pmid: pmid, plid: plid, uid: fromUid);
+
+    var response = await _post(MessagePmSessionAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+
+    assert(response is Map);
+
+    return MessagePmSessionAction.parseResponse(response);
+  }
+
   /// 评论
-  Future<MessageNotifyListResponse> messageListNotify({int page = 1}) async {
+  Future<MessageNotifyListResponse> messageListNotify(
+      {String type, int page = 1}) async {
     Map<String, dynamic> data =
-        MessageNotifyListAction.buildRequest(page: page);
+        MessageNotifyListAction.buildRequest(page: page, type: type);
 
     var response = await _post(MessageNotifyListAction.action,
         data: ApplicationCore.buildCommonParameters()..addAll(data));
@@ -536,5 +591,60 @@ class MobcentClient {
     assert(response is Map);
 
     return UserPhotolistAction.parseResponse(response);
+  }
+
+  Future<TopicListResponse> userListFavorites(
+      {int page = 1, int pageSize = 20}) async {
+    Map<String, dynamic> data = TopicListAction.buildFavoriteRequest(
+        page: page ?? 1, pageSize: pageSize ?? 20);
+
+    var response = await _post("user/topiclist",
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+
+    assert(response is Map);
+
+    return TopicListAction.parseResponse(response);
+  }
+
+  Future<MobcentResponse> userFollow({int userId}) async {
+    Map<String, dynamic> data = UserAdminAction.buildFollowRequest(userId);
+    var response = await _post(UserAdminAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+    return UserAdminAction.parseResponse(response);
+  }
+
+  Future<MobcentResponse> userUnFollow({int userId}) async {
+    Map<String, dynamic> data = UserAdminAction.buildUnFollowRequest(userId);
+    var response = await _post(UserAdminAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+    return UserAdminAction.parseResponse(response);
+  }
+
+  Future<MobcentResponse> userAddFavorite({int tid}) async {
+    Map<String, dynamic> data =
+        UserFavoriteAction.buildFavoriteRequest(id: tid);
+    var response = await _post(UserFavoriteAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+    return UserFavoriteAction.parseResponse(response);
+  }
+
+  Future<MobcentResponse> userDelFavorite({int tid}) async {
+    Map<String, dynamic> data =
+        UserFavoriteAction.buildUnFavoriteRequest(id: tid);
+    var response = await _post(UserFavoriteAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+    return UserFavoriteAction.parseResponse(response);
+  }
+
+  Future<MessagePmAdminResponse> userPmSendTo(
+      {@required int uid,
+      @required int pmid,
+      @required int plid,
+      @required String content}) async {
+    Map<String, dynamic> data = MessagePmAdminAction.buildRequest(
+        uid: uid, pmid: pmid, plid: plid, content: content);
+    var response = await _post(MessagePmAdminAction.action,
+        data: ApplicationCore.buildCommonParameters()..addAll(data));
+    return MessagePmAdminAction.parseResponse(response);
   }
 }

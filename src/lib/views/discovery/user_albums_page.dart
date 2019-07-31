@@ -6,6 +6,7 @@ import 'package:photo/photo.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:qiqi_bike/api/mobcent_client.dart';
 import 'package:qiqi_bike/common/data_helper.dart';
+import 'package:qiqi_bike/core/application.dart';
 import 'package:qiqi_bike/models/forum/forum_sendattachmentex.dart' as att;
 import 'package:qiqi_bike/models/user/user_albumlist.dart';
 
@@ -38,10 +39,12 @@ class _UserAlbumsPageState extends State<UserAlbumsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final String title =
+        widget.userId == ApplicationCore.session.uid ? "我" : "Ta";
     return Scaffold(
       backgroundColor: Color(0xfff5f5f5),
       appBar: AppBar(
-        title: Text("我的相册"),
+        title: Text("${title}的相册"),
       ),
       body: _buildPageBody(context),
     );
@@ -107,6 +110,18 @@ class _AlbumPageState extends State<AlbumPage> {
         setState(() {
           _photos = response.list;
         });
+      } else {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (context) {
+            return new SimpleDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              children: <Widget>[Center(child: Text(response.head.errInfo))],
+            );
+          },
+        );
       }
     });
   }
@@ -124,22 +139,24 @@ class _AlbumPageState extends State<AlbumPage> {
       appBar: AppBar(
         title: Text(widget.album.title),
         actions: <Widget>[
-          RawMaterialButton(
-              child: Text("上传",
-                  style: TextStyle(color: Colors.white, fontSize: 18)),
-              constraints: BoxConstraints(minWidth: 60),
-              onPressed: () {
-                Navigator.of(context)
-                    .push<bool>(MaterialPageRoute(
-                        fullscreenDialog: true,
-                        builder: (context) => AlbumUploadPage(widget.album)))
-                    .then((result) {
-                  if (result != null && result) {
-                    /// TODO: 刷新
-                    this._loadData();
-                  }
-                });
-              })
+          /// 仅查看用户自己的相册时显示上传按钮
+          if (widget.album.user_id == ApplicationCore.session.uid)
+            RawMaterialButton(
+                child: Text("上传",
+                    style: TextStyle(color: Colors.white, fontSize: 18)),
+                constraints: BoxConstraints(minWidth: 60),
+                onPressed: () {
+                  Navigator.of(context)
+                      .push<bool>(MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (context) => AlbumUploadPage(widget.album)))
+                      .then((result) {
+                    if (result != null && result) {
+                      /// TODO: 刷新
+                      this._loadData();
+                    }
+                  });
+                })
         ],
       ),
       body: _buildPageBody(context),

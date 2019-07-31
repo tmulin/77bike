@@ -5,6 +5,8 @@ import 'package:qiqi_bike/common/data_helper.dart';
 import 'package:qiqi_bike/core/application.dart';
 import 'package:qiqi_bike/core/settings.dart';
 import 'package:qiqi_bike/models/forum/forum_topiclist.dart' as tp;
+import 'package:qiqi_bike/storage/forum_cache_manager.dart';
+import 'package:qiqi_bike/storage/forum_topic_summary.dart';
 import 'package:qiqi_bike/views/topic_page.dart';
 import 'package:qiqi_bike/widgets/forum_search_button.dart';
 import 'package:qiqi_bike/widgets/topic_image_widget.dart';
@@ -13,6 +15,7 @@ import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
 import '../core/forum.dart';
+import 'discovery/user_index_page.dart';
 import 'image_viewer.dart';
 
 class _DataSource extends Model {
@@ -52,6 +55,42 @@ class _DataSource extends Model {
       return true;
     }
     _loading = true;
+
+    if (clear) {
+      try {
+        TopicKind topicKind = TopicKind.New;
+        switch (sortBy) {
+          case tp.TopicListAction.sortByNew:
+            topicKind = TopicKind.New;
+            break;
+          case tp.TopicListAction.sortByAll:
+            topicKind = TopicKind.All;
+            break;
+          case tp.TopicListAction.sortByMarrow:
+            topicKind = TopicKind.Essence;
+            break;
+          case tp.TopicListAction.sortByTop:
+            topicKind = TopicKind.Top;
+            break;
+        }
+        final topics = await ForumCacheManager.instance.loadTopicSummaries(
+            boardId,
+            page: 1,
+            pageSize: 20,
+            topicKind: topicKind);
+
+        if (topics != null && topics.length > 0) {
+          this.items.clear();
+          this.items.addAll(topics.map((item) => item.toTopic()));
+          print("主题缓存数据加载 => ${topics.length}");
+        } else {
+          print("主题缓存数据不存在 ...");
+        }
+      } catch (exp) {
+        print("主题缓存加载失败 => ${exp}");
+      }
+    }
+
     notifyListeners();
     print(
         "DataSource ${name} | B:${boardId} F:${filterId} P:${_nextPage} S:${sortBy} loading ...");
@@ -71,6 +110,23 @@ class _DataSource extends Model {
       /// 刷新数据源时,清除旧数据(在刷新成功之后再清除旧数据,避免先清空数据导致的页面闪烁)
       if (clear) {
         this._items.clear();
+      }
+
+      try {
+        final int totalCount =
+            ["all", "new"].contains(sortBy) ? response.total_num : null;
+        final int essenceCount = "marrow" == sortBy ? response.total_num : null;
+        final int topCount = "top" == sortBy ? response.total_num : null;
+        final boardResult = await ForumCacheManager.instance
+            .cacheBoardSummaries(boardId,
+                totalCount: totalCount,
+                essenceCount: essenceCount,
+                topCount: topCount);
+
+        final cacheResult =
+            await ForumCacheManager.instance.cacheTopicSummaries(response.list);
+      } catch (exp) {
+        print("主题缓存更新失败 => ${exp}");
       }
 
       /// 页码+1
@@ -127,7 +183,7 @@ class _BoardPageState extends State<BoardPage> {
     _dataSources[3] = _DataSource("置顶",
         boardId: widget.boardId, sortBy: tp.TopicListAction.sortByTop);
 
-    _dataSources.forEach((ds) => ds.loadMore());
+    _dataSources.forEach((ds) => ds.reload());
 
     /// 刷新组件key
     _refreshIndicators = List();
@@ -448,22 +504,35 @@ class _BoardPageState extends State<BoardPage> {
 
   /// 小头像模式用户信息
   _buildUserDetailWidgetMini(BuildContext context, tp.Topic model) {
-    return Row(
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: UserAvatarWidget(
-            model.userAvatar,
-            width: 24.0,
-            height: 24.0,
-            borderRadius: 4,
+    final showUserHomePage = () {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => UserIndexPage(
+                userId: model.user_id,
+                userName: model.user_nick_name,
+                userAvatar: model.userAvatar,
+              )));
+    };
+
+    return GestureDetector(
+      onTap: showUserHomePage,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: UserAvatarWidget(
+              model.userAvatar,
+              width: 24.0,
+              height: 24.0,
+              borderRadius: 4,
+            ),
           ),
-        ),
-        Text(
-          model.user_nick_name,
-          style: TextStyle(color: Colors.grey.shade800, fontSize: 16),
-        ),
-      ],
+          Text(
+            model.user_nick_name,
+            style: TextStyle(color: Colors.grey.shade800, fontSize: 16),
+          ),
+        ],
+      ),
     );
   }
 
@@ -590,7 +659,9 @@ class IconWithLabel extends StatelessWidget {
 
   final Widget label;
 
-  IconWithLabel({this.icon, this.label, void Function() onPressed});
+  final void Function() onPressed;
+
+  IconWithLabel({this.icon, this.label, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -599,9 +670,17 @@ class IconWithLabel extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
-          children: <Widget>[icon, Container(width: 8), label],
+          children: <Widget>[
+            icon,
+            if (label != null) Container(width: 4),
+            if (label != null) label
+          ],
         ));
-    return widget;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      child: widget,
+      onTap: onPressed,
+    );
   }
 }
 

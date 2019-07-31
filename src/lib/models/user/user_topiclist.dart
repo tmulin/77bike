@@ -1,8 +1,5 @@
 import 'package:qiqi_bike/models/forum/forum_search.dart';
 
-/// 'topic'
-/// 'reply':
-/// 'favorite':
 class UserTopicListAction {
   static const String action = "user/topiclist";
 
@@ -20,11 +17,3 @@ class UserTopicListAction {
     return ForumSearchResponseSerializer().fromMap(response);
   }
 }
-
-//@GenSerializer()
-//class UserTopicListResponseSerializer extends Serializer<UserTopicListResponse>
-//    with _$UserTopicListResponseSerializer {}
-//
-//class UserTopicListResponse {
-//
-//}

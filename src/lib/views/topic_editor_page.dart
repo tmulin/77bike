@@ -704,8 +704,9 @@ class _PostSubmitDialogState extends State<PostSubmitDialog> {
       for (var asset in widget.task.attachments) {
         attachments.add(await asset.file);
       }
-      final attachmentResponse = await MobcentClient.instance.sendAttactment(
-          arguments, attachments, onSendProgress: (count, total) {
+      final attachmentResponse = await MobcentClient.instance
+          .sendAttactment(arguments, attachments, timeout: 120000,
+              onSendProgress: (count, total) {
         print(
             "正在上传 ${count}/${total} => ${(count.toDouble() * 100 / total).toStringAsFixed(2)}% ...");
       });
@@ -729,6 +730,7 @@ class _PostSubmitDialogState extends State<PostSubmitDialog> {
       /// 发帖
       var model = PublishTopicModel.post(
           fid: widget.task.boardId,
+          title: widget.task.title,
           typeId: widget.task.typeId,
           textContent: widget.task.content,
           attachments: postAttachments);

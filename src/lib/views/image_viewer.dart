@@ -57,7 +57,7 @@ class _ImageViewerState extends State<ImageViewer> {
     return Stack(
       children: <Widget>[
         GestureDetector(
-          onVerticalDragEnd: (_){
+          onVerticalDragEnd: (_) {
             Navigator.of(context).pop();
           },
           child: PhotoViewGallery.builder(
@@ -74,20 +74,33 @@ class _ImageViewerState extends State<ImageViewer> {
             scrollPhysics: const BouncingScrollPhysics(),
             builder: (BuildContext context, int index) {
               return PhotoViewGalleryPageOptions(
-                onTapUp: (BuildContext context, TapUpDetails details,
-                    PhotoViewControllerValue controllerValue) {
-                  Navigator.of(context).pop();
-                },
-                maxScale: 1.0,
-                imageProvider: CachedNetworkImageProvider(widget.images[index],
-                    cacheManager: CustomCacheManager(),
-                    headers: {
-                      HttpHeaders.userAgentHeader:
-                          "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
-                    }),
-                initialScale: PhotoViewComputedScale.contained,
-                heroTag: widget.images[index],
-              );
+                  onTapUp: (BuildContext context, TapUpDetails details,
+                      PhotoViewControllerValue controllerValue) {
+                    Navigator.of(context).pop();
+                  },
+                  maxScale: 1.0,
+                  imageProvider: CachedNetworkImageProvider(
+                      widget.images[index],
+                      cacheManager: CustomCacheManager(),
+                      headers: {
+                        HttpHeaders.userAgentHeader:
+                            "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Appbyme"
+                      }),
+                  initialScale: PhotoViewComputedScale.contained,
+                  heroTag: widget.images[index],
+                  scaleStateCycle: (PhotoViewScaleState actual) {
+                    switch (actual) {
+                      case PhotoViewScaleState.initial:
+                        return PhotoViewScaleState.originalSize;
+                      case PhotoViewScaleState.originalSize:
+                        return PhotoViewScaleState.initial;
+                      case PhotoViewScaleState.zoomedIn:
+                      case PhotoViewScaleState.zoomedOut:
+                        return PhotoViewScaleState.initial;
+                      default:
+                        return PhotoViewScaleState.initial;
+                    }
+                  });
             },
             itemCount: widget.images.length,
           ),

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:qiqi_bike/common/data_helper.dart';
 import 'package:qiqi_bike/core/application.dart';
 import 'package:qiqi_bike/core/datasource.dart';
+import 'package:qiqi_bike/models/common.dart';
 import 'package:qiqi_bike/models/forum/forum_postlist.dart';
+import 'package:qiqi_bike/storage/forum_cache_manager.dart';
 import 'package:qiqi_bike/views/board_page.dart';
 import 'package:qiqi_bike/views/topic_editor_page.dart';
 import 'package:qiqi_bike/views/webview_page.dart';
@@ -15,11 +17,13 @@ import 'package:qiqi_bike/widgets/user_avatar_widget.dart';
 import 'package:scoped_model/scoped_model.dart';
 
 import '../api/mobcent_client.dart';
+import 'discovery/user_index_page.dart';
 import 'image_viewer.dart';
 import 'user_login_page.dart';
 
 class PostDataModel {
   PostTopic topic;
+  int totalReplies;
   List<PostReply> items = [];
 }
 
@@ -28,13 +32,40 @@ class PostDataSource extends DataSource<PostDataModel> {
   final int topicId;
 
   PostDataSource({this.boardId = 0, this.topicId, int order})
-      : super(initValue: PostDataModel(), order: order ?? 0) {}
+      : super(initValue: PostDataModel(), order: order ?? 0);
 
   @override
   Future<bool> onLoad(bool isReload) async {
     try {
+      if (isReload) {
+        final topic = await ForumCacheManager.instance.loadTopic(topicId);
+        final replies = await ForumCacheManager.instance.loadTopicReplies(
+            topicId,
+            page: 1,
+            pageSize: 100,
+            order: this.order);
+
+        if (topic != null && topic.topic_id != null) {
+          this.value.topic ??= topic.toTopic();
+          this.value.totalReplies = topic.total_replies;
+        } else {
+          print("主题缓存数据不存在 ...");
+        }
+        if (replies != null && replies.length > 0) {
+          this.value.items.clear();
+          this.value.items.addAll(replies.map((item) => item.toReply()));
+        } else {
+          print("回帖缓存数据不存在 ...");
+        }
+        notifyListeners();
+      }
+
       var response = await MobcentClient.instance.postList(
-          topicId: topicId, authorId: 0, page: this.page, order: order);
+          topicId: topicId,
+          boardId: boardId,
+          authorId: 0,
+          page: this.page,
+          order: order);
       if (!response.noError) {
         this.message = response.head.errInfo;
         return false;
@@ -51,6 +82,9 @@ class PostDataSource extends DataSource<PostDataModel> {
         this.value.items.clear();
       }
 
+      ForumCacheManager.instance
+          .cacheTopicPosts(boardId, topicId, response.topic, response.list);
+
       /// 追加新的数据
       this.value.items.addAll(response.list ?? []);
 
@@ -58,8 +92,8 @@ class PostDataSource extends DataSource<PostDataModel> {
       this.hasMore = !((response.has_next == 0) ||
           (this.total == this.value.items.length));
 
-      /// 只有首次才需要设置主题帖
-      this.value.topic ??= response.topic;
+      /// 点赞数可能发生变化
+      if (response.topic != null) this.value.topic = response.topic;
 
       print("VALUE =>${this.value.items.length} ");
 
@@ -69,6 +103,74 @@ class PostDataSource extends DataSource<PostDataModel> {
       this.message = exp.toString();
       return false;
     }
+  }
+
+  void fixIosProblem(List<PostContent> contents) {
+    if (contents == null) return;
+
+    for (int index = 0; index < contents.length; index++) {
+      print(
+          "fixIosProblem: $index @ ${contents.length} => ${contents[index].infor}");
+      if (contents[index].type != 0) continue;
+      final lines = contents[index].infor?.replaceAll("\r", "")?.split("\n");
+      if (lines == null || lines.length == 1) continue;
+      lines.forEach((item) {
+        print(
+            "fixIosProblem: $index @ ${contents.length} => SPLIT ${contents[index]}");
+      });
+
+      contents[index].infor = lines[0];
+      contents.insertAll(
+          index + 1,
+          lines.sublist(1).map((line) => PostContent(
+              type: 0, infor: line.replaceAll("\r", "").replaceAll("\n", ""))));
+      index += lines.length - 1;
+    }
+  }
+}
+
+class CachedDataSource extends Model {
+  final int boardId;
+  final int topicId;
+  final PostDataModel dataModel = PostDataModel();
+
+  int _order = 0;
+  int _page = 1;
+  int _pageSize = 10;
+
+  CachedDataSource({this.boardId = 0, this.topicId, int order})
+      : this._order = order ?? 0;
+
+  Future<bool> fetch() async {
+    final topic = await ForumCacheManager.instance.loadTopic(topicId);
+    final replies = await ForumCacheManager.instance.loadTopicReplies(topicId,
+        page: _page, pageSize: _pageSize, order: _order);
+
+    dataModel.topic = topic.toTopic();
+    dataModel.totalReplies = topic.total_replies;
+    dataModel.items.addAll(replies.map((item) => item.toReply()));
+    return true;
+  }
+
+  Future<bool> fetchRemote(int page, int pageSize) async {
+    var response = await MobcentClient.instance.postList(
+        topicId: topicId,
+        boardId: boardId,
+        authorId: 0,
+        page: page,
+        pageSize: pageSize,
+        order: _order);
+    if (!response.noError) {
+      return false;
+    }
+    for (var reply in response.list) {
+      fixIosProblem(reply?.reply_content);
+    }
+
+    ForumCacheManager.instance
+        .cacheTopicPosts(boardId, topicId, response.topic, response.list);
+
+    return true;
   }
 
   void fixIosProblem(List<PostContent> contents) {
@@ -351,8 +453,8 @@ class _TopicPageState extends State<TopicPage> {
                 widget.title ?? topic?.title,
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               )),
-          _buildUserDetailWidget(
-              context, topic.icon, topic.user_nick_name, topic.userTitle),
+          _buildUserDetailWidget(context, topic.user_id, topic.icon,
+              topic.user_nick_name, topic.userTitle),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Divider(height: 1),
@@ -390,8 +492,8 @@ class _TopicPageState extends State<TopicPage> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _buildUserDetailWidget(
-              context, model.icon, model.reply_name, model.userTitle,
+          _buildUserDetailWidget(context, model.reply_id, model.icon,
+              model.reply_name, model.userTitle,
               floor: model.position),
           Divider(height: 8),
           ...model.reply_content.map((content) => PostContentWidget(
@@ -434,8 +536,30 @@ class _TopicPageState extends State<TopicPage> {
             style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
           ),
           Spacer(),
+          _buildFavoriteWidget(context, model.topic_id, model.is_favor),
+          Container(width: 16),
           IconWithLabel(
-              onPressed: () {},
+              onPressed: () async {
+                final response = await MobcentClient.instance
+                    .forumSupport(topicId: widget.topicId, type: 'topic');
+                if ([080000002, 080000004].contains(response?.head?.errCode)) {
+                  this._dataSource.reload();
+                }
+
+                showDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (context) {
+                    return new SimpleDialog(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      children: <Widget>[
+                        Center(child: Text(response.head.errInfo))
+                      ],
+                    );
+                  },
+                );
+              },
               icon: Icon(
                 Icons.thumb_up,
                 color: zanAdded > 0
@@ -444,6 +568,7 @@ class _TopicPageState extends State<TopicPage> {
                 size: 18,
               ),
               label: Text(zanValue.toStringAsFixed(0))),
+          Container(width: 16),
           IconWithLabel(
               onPressed: () {},
               icon: Icon(
@@ -452,6 +577,7 @@ class _TopicPageState extends State<TopicPage> {
                 size: 18,
               ),
               label: Text(model.hits.toString())),
+          Container(width: 16),
           IconWithLabel(
               onPressed: () {},
               icon: Icon(
@@ -465,41 +591,103 @@ class _TopicPageState extends State<TopicPage> {
     );
   }
 
+  _buildFavoriteWidget(BuildContext context, int tid, int isFavor) {
+    int favorState = isFavor;
+    if (ApplicationCore.favoriteCache.containsKey(tid))
+      favorState = ApplicationCore.favoriteCache[tid] ?? isFavor;
+
+    final iconData = favorState > 0 ? Icons.favorite : Icons.favorite_border;
+    final iconLabel = favorState > 0 ? "已收藏" : "收藏";
+
+    return IconWithLabel(
+      onPressed: () async {
+        MobcentResponse response;
+        if (favorState == 0)
+          response = await MobcentClient.instance.userAddFavorite(tid: tid);
+        else
+          response = await MobcentClient.instance.userDelFavorite(tid: tid);
+
+        /// 020000007 = 收藏成功
+        /// 020000002 = 已经收藏过了
+        /// 020000008 = 取消收藏
+        /// 020000005 = 取消收藏失败
+        if ([020000007, 020000002].contains(response?.head?.errCode)) {
+          ApplicationCore.favoriteCache[tid] = 1; // 更新缓存状态
+          // this._dataSource.reload();
+        } else if ([020000008, 020000005].contains(response?.head?.errCode)) {
+          ApplicationCore.favoriteCache[tid] = 0;
+        }
+        setState(() {});
+
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (context) {
+            return new SimpleDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              children: <Widget>[Center(child: Text(response.head.errInfo))],
+            );
+          },
+        );
+      },
+      icon: Icon(
+        iconData,
+        color: Colors.red.shade400,
+        size: 18,
+      ),
+      label: Text(iconLabel, style: TextStyle(fontSize: 13)),
+    );
+  }
+
   /// 小头像模式用户信息
-  _buildUserDetailWidget(
-      BuildContext context, String avatar, String nickName, String titleName,
+  _buildUserDetailWidget(BuildContext context, int userId, String avatar,
+      String nickName, String titleName,
       {int floor}) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: Row(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: UserAvatarWidget(
-              avatar,
-              width: 24.0,
-              height: 24.0,
-              borderRadius: 4,
+    final showUserHomePage = () {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => UserIndexPage(
+                userId: userId,
+                userName: nickName,
+                userAvatar: avatar,
+              )));
+    };
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: showUserHomePage,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: UserAvatarWidget(
+                avatar,
+                width: 24.0,
+                height: 24.0,
+                borderRadius: 4,
+              ),
             ),
-          ),
-          Text(
-            nickName,
-            style: TextStyle(
-                color: Theme.of(context).primaryColorDark, fontSize: 16),
-          ),
-          Container(width: 4),
-          Text(
-            titleName,
-            style: TextStyle(color: Color(0xffC6A300), fontSize: 11),
-          ),
-          Spacer(),
-          if (floor != null)
             Text(
-              "${floor}楼",
-              style:
-                  TextStyle(color: Theme.of(context).hintColor, fontSize: 13),
+              nickName,
+              style: TextStyle(
+                  color: Theme.of(context).primaryColorDark, fontSize: 16),
             ),
-        ],
+            Container(width: 4),
+            Text(
+              titleName,
+              style: TextStyle(color: Color(0xffC6A300), fontSize: 11),
+            ),
+            Spacer(),
+            if (floor != null)
+              Text(
+                "${floor}楼",
+                style:
+                    TextStyle(color: Theme.of(context).hintColor, fontSize: 13),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -751,7 +939,7 @@ class PostContentWidget extends StatelessWidget {
       case 1:
         return imageSegment(context, onTapImage: this.onTapImage);
       case 4:
-        return atSegment(context);
+        return urlSegment(context);
       default:
         return Container();
     }
@@ -812,7 +1000,7 @@ class PostContentWidget extends StatelessWidget {
     );
   }
 
-  Widget atSegment(BuildContext context) {
+  Widget urlSegment(BuildContext context) {
     return Container(
         margin: EdgeInsets.symmetric(horizontal: 8),
         child: GestureDetector(
@@ -820,10 +1008,20 @@ class PostContentWidget extends StatelessWidget {
             if (content.url == null) return;
             if (content.url.startsWith("http://") ||
                 content.url.startsWith("https://")) {
+              String targetUrl = content.url;
+              if (targetUrl.startsWith("http://bbs.77bike.com/https://"))
+                targetUrl = targetUrl
+                    .substring("http://bbs.77bike.com/https://".length - 8);
+              else if (targetUrl.startsWith("http://bbs.77bike.com/http://"))
+                targetUrl = targetUrl
+                    .substring("http://bbs.77bike.com/http://".length - 7);
+
+              print("TARGET => ${targetUrl}");
+
               Navigator.of(context).push(MaterialPageRoute(
                   fullscreenDialog: true,
                   builder: (context) => WebViewPage(
-                        url: content.url,
+                        url: targetUrl,
                         title: content.infor,
                       )));
             }

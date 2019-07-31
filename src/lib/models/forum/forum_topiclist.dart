@@ -32,9 +32,9 @@ topOrder	0
 */
 
 import 'package:jaguar_serializer/jaguar_serializer.dart';
+import 'package:qiqi_bike/models/user/user_getsetting.dart';
 
 import '../common.dart';
-import 'package:qiqi_bike/models/user/user_getsetting.dart';
 
 part 'forum_topiclist.jser.dart';
 
@@ -77,6 +77,10 @@ class TopicListAction {
         "page": page,
         "pageSize": pageSize
       };
+
+  static Map<String, dynamic> buildFavoriteRequest(
+          {int page = 1, int pageSize = 20}) =>
+      {"page": page, "pageSize": pageSize, "type": "favorite"};
 
   static TopicListResponse parseResponse(Map<String, dynamic> response) {
     return TopicListResponseSerializer().fromMap(response);

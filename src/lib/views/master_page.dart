@@ -37,7 +37,7 @@ class _MasterPageState extends State<MasterPage> {
 
     Future.delayed(Duration(milliseconds: 1000)).then((_) {
       UpdaterService.instance.checkUpdate().then((response) {
-        if (response.hasUpdate) {
+        if (response?.hasUpdate ?? false) {
           setState(() {
             _updateResponse = response;
           });

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_user_agent/flutter_user_agent.dart';
 import 'package:qiqi_bike/localizations.dart';
+import 'package:qiqi_bike/storage/forum_cache_manager.dart';
 import 'package:qiqi_bike/views/master_page.dart';
 
 import 'api/mobcent_client.dart';
@@ -10,6 +11,9 @@ import 'core/application.dart';
 import 'core/forum.dart';
 
 void main() async {
+  /// 初始化本地缓存数据库
+  await ForumCacheManager.instance.initialize();
+
   /// 应用数据初始化
   await ApplicationCore.initialize();
 
